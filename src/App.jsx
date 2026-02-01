@@ -17,6 +17,7 @@ import Home from "./pages/Home";
 import CategoryPage from "./pages/shop/CategoryPage";
 import ProductDetail from "./pages/shop/ProductDetail";
 import ShopProducts from "./pages/shop/Products";
+import ClientDashboard from "./pages/shop/ClientDashboard";
 
 // Páginas Admin (Privadas)
 import Dashboard from "./pages/admin/Dashboard";
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="categoria/:id" element={<CategoryPage />} />
             <Route path="producto/:id" element={<ProductDetail />} />
             <Route path="productos" element={<ShopProducts />} />
+            <Route path="perfil" element={<ClientDashboard />} />
           </Route>
 
           {/* --- ZONA BLINDADA (ADMIN) --- */}

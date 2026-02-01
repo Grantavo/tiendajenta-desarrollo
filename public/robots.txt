@@ -1,0 +1,13 @@
+# Instrucciones para todos los buscadores (Google, Bing, etc.)
+User-agent: *
+
+# Permitir que vean toda la tienda y productos
+Allow: /
+
+# Evitar que los buscadores entren a tu panel de administración
+# Esto protege tu privacidad y evita que el panel salga en resultados de búsqueda
+Disallow: /admin
+Disallow: /login
+
+# Ayuda a los buscadores a encontrar tus productos más rápido
+Sitemap: https://tienda-jenta.netlify.app/sitemap.xml

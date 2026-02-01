@@ -50,7 +50,8 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
 
     try {
       // 3. GUARDAR EN FIREBASE
-      const userRef = doc(db, "users", user.id);
+      const collectionName = user.collection || "clients";
+      const userRef = doc(db, collectionName, user.id);
       await updateDoc(userRef, {
         name: formData.name,
         email: formData.email.trim(),

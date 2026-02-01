@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+// Eliminamos useNavigate porque usamos window.location.href
 import { X, Mail, Lock, User, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 
 export default function AuthModal({ isOpen, onClose }) {
-  const navigate = useNavigate();
+  // Eliminamos const navigate = useNavigate();
   const [view, setView] = useState("login");
   const [loading, setLoading] = useState(false);
 
@@ -28,9 +28,9 @@ export default function AuthModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  // --- 1. VALIDACIONES ESTRICTAS AL ENVIAR ---
+  // --- 1. VALIDACIONES ESTRICTAS ---
   const validateInputs = () => {
-    // Email: Regex estándar para correos
+    // Email: Regex estándar
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
       toast.error("Ingresa un correo válido (ej: usuario@gmail.com).");
@@ -43,7 +43,7 @@ export default function AuthModal({ isOpen, onClose }) {
       return false;
     }
 
-    // Solo para Registro
+    // Validaciones exclusivas de Registro
     if (view === "register") {
       // Nombre: Mínimo 3 letras
       if (formData.name.trim().length < 3) {
@@ -61,46 +61,45 @@ export default function AuthModal({ isOpen, onClose }) {
     return true;
   };
 
-  // --- 2. CONTROL ESTRICTO DE INPUTS (MÁSCARAS) ---
+  // --- 2. CONTROL DE INPUTS (MÁSCARAS) ---
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Si es Celular: Solo permitir números y máximo 10
+    // Si es Celular: Solo permitir números
     if (name === "phone") {
-      const onlyNums = value.replace(/\D/g, ""); // Borra cualquier letra
+      const onlyNums = value.replace(/\D/g, ""); // Borra letras
       if (onlyNums.length <= 10) {
         setFormData({ ...formData, phone: onlyNums });
       }
       return;
     }
 
-    // Si es Nombre: Solo permitir letras y espacios (no números)
+    // Si es Nombre: Solo permitir letras
     if (name === "name") {
       const onlyLetters = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, "");
       setFormData({ ...formData, name: onlyLetters });
       return;
     }
 
-    // Resto de campos normal
     setFormData({ ...formData, [name]: value });
   };
 
   // --- LÓGICA LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!validateInputs()) return; // Frena si hay error
+    if (!validateInputs()) return;
 
     setLoading(true);
 
     try {
       const email = formData.email.trim();
 
-      // Buscar en Clients
+      // 1. Buscar en CLIENTES
       let q = query(collection(db, "clients"), where("email", "==", email));
       let snap = await getDocs(q);
       let isStaff = false;
 
-      // Buscar en Users (Admin)
+      // 2. Si no, buscar en ADMINS
       if (snap.empty) {
         q = query(collection(db, "users"), where("email", "==", email));
         snap = await getDocs(q);
@@ -108,23 +107,24 @@ export default function AuthModal({ isOpen, onClose }) {
       }
 
       if (snap.empty) {
-        toast.error("Usuario no encontrado.");
+        toast.error("Usuario no registrado.");
         setLoading(false);
         return;
       }
 
-      const userData = snap.docs[0].data();
+      const userDoc = snap.docs[0];
+      const userData = userDoc.data();
 
-      // Validar password (simple)
+      // 3. Validar Password
       if (userData.password !== formData.password.trim()) {
         toast.error("Contraseña incorrecta.");
         setLoading(false);
         return;
       }
 
-      // Crear sesión
+      // 4. Crear Sesión
       const sessionData = {
-        id: snap.docs[0].id,
+        id: userDoc.id,
         ...userData,
         collection: isStaff ? "users" : "clients",
       };
@@ -132,11 +132,16 @@ export default function AuthModal({ isOpen, onClose }) {
 
       sessionStorage.setItem("shopUser", JSON.stringify(sessionData));
 
-      toast.success(`Hola de nuevo, ${sessionData.name}`);
+      toast.success(`Bienvenido, ${sessionData.name}`);
+
+      // [CAMBIO] Solo cerramos el modal, NO redirigimos
       onClose();
 
-      if (isStaff && sessionData.roleId) navigate("/admin");
-      else navigate("/perfil");
+      // Solo redirigimos si es admin
+      if (isStaff && sessionData.roleId) {
+        window.location.href = "/admin";
+      }
+      // Los clientes se quedan en la página actual
     } catch (error) {
       console.error(error);
       toast.error("Error al ingresar.");
@@ -153,7 +158,7 @@ export default function AuthModal({ isOpen, onClose }) {
     setLoading(true);
 
     try {
-      // Verificar duplicados
+      // 1. Verificar duplicados
       const q = query(
         collection(db, "clients"),
         where("email", "==", formData.email.trim()),
@@ -166,6 +171,7 @@ export default function AuthModal({ isOpen, onClose }) {
         return;
       }
 
+      // 2. Crear Cliente
       const newClient = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -179,17 +185,21 @@ export default function AuthModal({ isOpen, onClose }) {
 
       const docRef = await addDoc(collection(db, "clients"), newClient);
 
+      // 3. Iniciar Sesión
       const sessionData = {
         id: docRef.id,
         ...newClient,
         collection: "clients",
+        // Usamos fecha local para evitar error de almacenamiento
+        createdAt: new Date().toISOString(),
       };
       delete sessionData.password;
 
       sessionStorage.setItem("shopUser", JSON.stringify(sessionData));
 
       toast.success("Cuenta creada exitosamente.");
-      navigate("/perfil");
+
+      // [CAMBIO] Solo cerramos el modal, NO redirigimos
       onClose();
     } catch (error) {
       console.error(error);
@@ -205,6 +215,7 @@ export default function AuthModal({ isOpen, onClose }) {
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
+
       <div className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-in zoom-in-95 duration-200">
         <button
           onClick={onClose}
@@ -221,7 +232,6 @@ export default function AuthModal({ isOpen, onClose }) {
           onSubmit={view === "login" ? handleLogin : handleRegister}
           className="space-y-4"
         >
-          {/* Nombre (Solo registro) */}
           {view === "register" && (
             <div className="relative">
               <User
@@ -240,7 +250,6 @@ export default function AuthModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Email */}
           <div className="relative">
             <Mail
               className="absolute left-4 top-3.5 text-slate-400"
@@ -257,7 +266,6 @@ export default function AuthModal({ isOpen, onClose }) {
             />
           </div>
 
-          {/* Celular (Solo registro) */}
           {view === "register" && (
             <div className="relative">
               <Phone
@@ -277,7 +285,6 @@ export default function AuthModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Password */}
           <div className="relative">
             <Lock
               className="absolute left-4 top-3.5 text-slate-400"
@@ -313,7 +320,7 @@ export default function AuthModal({ isOpen, onClose }) {
           <button
             onClick={() => {
               setView(view === "login" ? "register" : "login");
-              setFormData({ name: "", email: "", password: "", phone: "" }); // Limpiar al cambiar
+              setFormData({ name: "", email: "", password: "", phone: "" });
             }}
             className="text-blue-600 font-bold hover:underline"
           >

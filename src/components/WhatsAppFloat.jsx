@@ -1,25 +1,18 @@
 import React, { useState, useEffect } from "react";
 
-export default function WhatsAppFloat() {
-  // 1. FUNCIÓN HELPER PARA LEER Y FORMATEAR EL NÚMERO
+// 1. RECIBIMOS LA PROP 'hide' (Viene de ShopLayout.jsx cuando se abre el carrito)
+export default function WhatsAppFloat({ hide }) {
+  // --- LÓGICA DE OBTENCIÓN DE NÚMERO (INTACTA) ---
   const getWhatsAppNumber = () => {
     try {
       const settings = JSON.parse(localStorage.getItem("shopSettings") || "{}");
-
-      // Prioridad: campo 'whatsapp', sino campo 'phone'
       const rawNum = settings.whatsapp || settings.phone;
 
       if (rawNum) {
-        // A. Limpiamos caracteres no numéricos (espacios, +, -, paréntesis)
         let cleanNum = rawNum.replace(/\D/g, "");
-
-        // B. LÓGICA DE INDICATIVO COLOMBIA (57)
-        // Si el número no empieza por 57, se lo agregamos.
-        // Ejemplo: "3001234567" -> "573001234567"
         if (!cleanNum.startsWith("57")) {
           cleanNum = `57${cleanNum}`;
         }
-
         return cleanNum;
       }
     } catch (e) {
@@ -28,20 +21,16 @@ export default function WhatsAppFloat() {
     return null;
   };
 
-  // 2. ESTADO CON INICIALIZACIÓN PEREZOSA
   const [phoneNumber, setPhoneNumber] = useState(getWhatsAppNumber);
 
-  // 3. ESCUCHAR CAMBIOS EN TIEMPO REAL
   useEffect(() => {
     const handleStorageUpdate = () => {
       setPhoneNumber(getWhatsAppNumber());
     };
-
     window.addEventListener("storage", handleStorageUpdate);
     return () => window.removeEventListener("storage", handleStorageUpdate);
   }, []);
 
-  // Si no hay número, no renderizamos nada
   if (!phoneNumber) return null;
 
   return (
@@ -49,16 +38,22 @@ export default function WhatsAppFloat() {
       href={`https://wa.me/${phoneNumber}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 group"
       title="¡Chatea con nosotros!"
       style={{ cursor: "pointer" }}
+      // --- MEJORA UI: CLASES DINÁMICAS PARA OCULTAR ---
+      // Agregamos 'transition-all duration-500' para que se mueva suave.
+      // Si hide es true: translate-x-32 (se sale de pantalla) y opacity-0 (invisible).
+      // pointer-events-none asegura que no se pueda dar clic cuando está invisible.
+      className={`fixed bottom-6 right-6 z-50 group transition-all duration-500 ease-in-out ${
+        hide
+          ? "translate-x-32 opacity-0 pointer-events-none"
+          : "translate-x-0 opacity-100"
+      }`}
     >
-      {/* Círculo Verde con Sombra y Animación */}
+      {/* Círculo Verde con Sombra y Animación (VISUAL INTACTO) */}
       <div className="bg-[#25D366] w-14 h-14 rounded-full flex items-center justify-center shadow-[0_4px_14px_rgba(37,211,102,0.4)] hover:-translate-y-1 hover:scale-110 transition-all duration-300 relative">
-        {/* Efecto de Onda (Ping) para llamar la atención */}
         <span className="absolute inset-0 rounded-full bg-[#25D366] opacity-75 animate-ping group-hover:animate-none"></span>
 
-        {/* Icono SVG Oficial de WhatsApp (Blanco) */}
         <svg
           viewBox="0 0 24 24"
           className="w-8 h-8 fill-white relative z-10"
@@ -68,7 +63,7 @@ export default function WhatsAppFloat() {
         </svg>
       </div>
 
-      {/* Tooltip */}
+      {/* Tooltip (VISUAL INTACTO) */}
       <span className="absolute right-16 top-1/2 -translate-y-1/2 bg-white text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-slate-100 hidden md:block">
         ¿Necesitas ayuda?
       </span>

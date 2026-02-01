@@ -87,7 +87,7 @@ export default function Home() {
 
   const prevSlide = () =>
     setCurrentSlide((curr) =>
-      curr === 0 ? activeBannersList.length - 1 : curr - 1
+      curr === 0 ? activeBannersList.length - 1 : curr - 1,
     );
 
   const nextSlide = () =>
@@ -97,7 +97,7 @@ export default function Home() {
     if (activeBannersList.length <= 1) return;
     const interval = setInterval(
       () => setCurrentSlide((prev) => (prev + 1) % activeBannersList.length),
-      5000
+      5000,
     );
     return () => clearInterval(interval);
   }, [activeBannersList.length]);

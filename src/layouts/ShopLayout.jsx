@@ -4,6 +4,10 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import WhatsAppFloat from "../components/WhatsAppFloat";
 
+// 1. IMPORTAR FIREBASE (Para obtener el logo actualizado)
+import { db } from "../firebase/config";
+import { collection, getDocs } from "firebase/firestore";
+
 // Iconos
 import {
   ShoppingCart,
@@ -29,7 +33,32 @@ export default function ShopLayout() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // Cargar datos
+  // --- NUEVO: EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO) ---
+  useEffect(() => {
+    const syncSettings = async () => {
+      try {
+        // Consultamos la colección 'settings' de Firebase
+        const q = await getDocs(collection(db, "settings"));
+
+        if (!q.empty) {
+          // Tomamos el primer documento de configuración
+          const settingsData = q.docs[0].data();
+
+          // Lo guardamos en localStorage para que el LoadingSpinner lo pueda leer rápido
+          localStorage.setItem("shopSettings", JSON.stringify(settingsData));
+
+          // Disparamos un evento para avisar a otros componentes si es necesario
+          window.dispatchEvent(new Event("storage"));
+        }
+      } catch (error) {
+        console.error("Error sincronizando settings:", error);
+      }
+    };
+
+    syncSettings();
+  }, []);
+
+  // Cargar datos (Carrito y Pagos)
   useEffect(() => {
     const loadData = () => {
       // Carrito
@@ -38,7 +67,7 @@ export default function ShopLayout() {
 
       // Pagos (Solo activos)
       const savedPayments = JSON.parse(
-        localStorage.getItem("shopPayments") || "[]"
+        localStorage.getItem("shopPayments") || "[]",
       );
       setPaymentMethods(savedPayments.filter((p) => p.status === "active"));
     };
@@ -53,7 +82,7 @@ export default function ShopLayout() {
     let newCart;
     if (existing) {
       newCart = cartItems.map((item) =>
-        item.id === product.id ? { ...item, qty: (item.qty || 1) + 1 } : item
+        item.id === product.id ? { ...item, qty: (item.qty || 1) + 1 } : item,
       );
     } else {
       newCart = [...cartItems, { ...product, qty: 1 }];
@@ -74,7 +103,7 @@ export default function ShopLayout() {
     setCouponMessage({ type: "", text: "" });
     const allCoupons = JSON.parse(localStorage.getItem("shopCoupons") || "[]");
     const found = allCoupons.find(
-      (c) => c.code === couponCode.toUpperCase() && c.active
+      (c) => c.code === couponCode.toUpperCase() && c.active,
     );
     if (found) {
       setAppliedDiscount({ code: found.code, percent: found.discount });
@@ -91,7 +120,7 @@ export default function ShopLayout() {
   // Cálculos
   const subtotal = cartItems.reduce(
     (acc, item) => acc + item.price * (item.qty || 1),
-    0
+    0,
   );
   const discountAmount = appliedDiscount
     ? (subtotal * appliedDiscount.percent) / 100
@@ -100,7 +129,6 @@ export default function ShopLayout() {
 
   // --- FINALIZAR COMPRA (Checkout) ---
   const handleCheckout = () => {
-    // Validación: Obligar a elegir método de pago si existen opciones
     if (paymentMethods.length > 0 && !selectedPayment) {
       alert("Por favor selecciona un método de pago para continuar.");
       return;
@@ -108,21 +136,15 @@ export default function ShopLayout() {
 
     const settings = JSON.parse(localStorage.getItem("shopSettings") || "{}");
 
-    // --- LÓGICA DE NÚMERO CON INDICATIVO AUTOMÁTICO ---
     let rawPhone = settings.phone || settings.whatsapp || "";
-    let phone = rawPhone.replace(/\D/g, ""); // Solo números
+    let phone = rawPhone.replace(/\D/g, "");
 
-    // Si tiene 10 dígitos (ej: 3001234567), asumimos Colombia y agregamos 57
     if (phone.length === 10) {
       phone = `57${phone}`;
-    }
-    // Si no empieza por 57 y no está vacío, lo agregamos por seguridad
-    else if (phone.length > 0 && !phone.startsWith("57")) {
+    } else if (phone.length > 0 && !phone.startsWith("57")) {
       phone = `57${phone}`;
     }
-    // Fallback por defecto si no hay nada configurado
     if (!phone) phone = "573000000000";
-    // ----------------------------------------------------
 
     let message = `Hola, quiero realizar el siguiente pedido:\n\n`;
     cartItems.forEach((item) => {
@@ -138,18 +160,15 @@ export default function ShopLayout() {
     }
     message += `\n\n*TOTAL A PAGAR: $${total.toLocaleString()}*`;
 
-    // Incluir método de pago seleccionado
     if (selectedPayment) {
       message += `\n\n💳 *Método de Pago:* ${selectedPayment.type}`;
-      // Opcional: Incluir la cuenta para agilizar
-      // message += `\nCuenta: ${selectedPayment.accountNumber}`;
     }
 
     message += `\n\nQuedo atento para enviar el comprobante.`;
 
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
-      "_blank"
+      "_blank",
     );
   };
 
@@ -178,7 +197,6 @@ export default function ShopLayout() {
           isCartOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Header */}
         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
           <h2 className="font-bold text-xl flex items-center gap-2 text-slate-800">
             <ShoppingCart className="text-blue-600" /> Tu Carrito{" "}
@@ -194,7 +212,6 @@ export default function ShopLayout() {
           </button>
         </div>
 
-        {/* Lista Productos */}
         <div className="flex-1 overflow-y-auto p-5 bg-gray-50 custom-scrollbar">
           {cartItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
@@ -242,7 +259,6 @@ export default function ShopLayout() {
                 </div>
               ))}
 
-              {/* --- ZONA DE PAGO (INTEGRADA) --- */}
               {paymentMethods.length > 0 && (
                 <div className="mt-6 border-t border-slate-200 pt-6">
                   <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
@@ -274,7 +290,6 @@ export default function ShopLayout() {
                           )}
                         </div>
 
-                        {/* Detalles solo si está seleccionado */}
                         {selectedPayment?.id === pm.id && (
                           <div className="text-xs text-slate-600 mt-2 bg-white/50 p-2 rounded border border-blue-100">
                             <div className="flex justify-between items-center mb-1">
@@ -301,7 +316,6 @@ export default function ShopLayout() {
           )}
         </div>
 
-        {/* Footer Totales */}
         {cartItems.length > 0 && (
           <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] shrink-0 z-20">
             <div className="mb-4">
@@ -374,8 +388,7 @@ export default function ShopLayout() {
         )}
       </div>
 
-      {/* Botón Flotante de WhatsApp */}
-      <WhatsAppFloat />
+      <WhatsAppFloat hide={isCartOpen} />
     </div>
   );
 }

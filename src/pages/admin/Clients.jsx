@@ -11,6 +11,10 @@ import {
   Star,
   Trash2,
   User,
+  Wallet,
+  DollarSign,
+  Map,
+  Building2,
 } from "lucide-react";
 
 // 1. IMPORTAR SONNER PARA ALERTAS
@@ -67,6 +71,7 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRechargeOpen, setIsRechargeOpen] = useState(false);
 
   // Formulario
   const initialForm = {
@@ -78,6 +83,31 @@ export default function Clients() {
   };
   const [formData, setFormData] = useState(initialForm);
 
+  // Formulario de recarga
+  const [rechargeAmount, setRechargeAmount] = useState("");
+
+  // Función para formatear moneda (Visual)
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Manejador del input de recarga
+  const handleRechargeChange = (e) => {
+    const rawValue = e.target.value.replace(/\D/g, ""); // Solo números
+    if (rawValue === "") {
+      setRechargeAmount("");
+      return;
+    }
+    const numberValue = parseInt(rawValue, 10);
+    setRechargeAmount(formatCurrency(numberValue));
+  };
+
   // --- 3. CÁLCULOS ---
   const getClientStats = (phone) => {
     if (!orders || orders.length === 0)
@@ -86,12 +116,12 @@ export default function Clients() {
     const cleanPhone = String(phone || "").replace(/\D/g, "");
 
     const clientOrders = orders.filter(
-      (o) => String(o.phone || "").replace(/\D/g, "") === cleanPhone
+      (o) => String(o.phone || "").replace(/\D/g, "") === cleanPhone,
     );
 
     const totalSpent = clientOrders.reduce(
       (acc, order) => acc + (Number(order.total) || 0),
-      0
+      0,
     );
     return {
       count: clientOrders.length,
@@ -115,6 +145,7 @@ export default function Clients() {
         isVip: false,
         joinDate: new Date().toISOString().split("T")[0],
         createdAt: new Date(),
+        walletBalance: 0,
       };
 
       const docRef = await addDoc(collection(db, "clients"), newClientData);
@@ -162,7 +193,7 @@ export default function Clients() {
     try {
       await updateDoc(doc(db, "clients", id), { isVip: newVipStatus });
       toast.success(
-        newVipStatus ? "Cliente marcado como VIP ✨" : "Estatus VIP removido"
+        newVipStatus ? "Cliente marcado como VIP ✨" : "Estatus VIP removido",
       );
     } catch (error) {
       console.error("Error actualizando VIP:", error);
@@ -172,7 +203,7 @@ export default function Clients() {
 
   const handleUpdateNotes = async (id, newNotes) => {
     const updatedClients = clients.map((c) =>
-      c.id === id ? { ...c, notes: newNotes } : c
+      c.id === id ? { ...c, notes: newNotes } : c,
     );
     setClients(updatedClients);
     setSelectedClient((prev) => ({ ...prev, notes: newNotes }));
@@ -184,11 +215,46 @@ export default function Clients() {
     }
   };
 
+  const handleRecharge = async () => {
+    // Limpiamos el formato para obtener el número real
+    const cleanAmount = parseInt(rechargeAmount.replace(/\D/g, ""), 10);
+
+    if (!cleanAmount || cleanAmount <= 0) {
+      return toast.error("Ingresa un monto válido");
+    }
+
+    try {
+      const newBalance = (selectedClient.walletBalance || 0) + cleanAmount;
+
+      await updateDoc(doc(db, "clients", selectedClient.id), {
+        walletBalance: newBalance,
+        lastRecharge: {
+          amount: cleanAmount,
+          date: new Date().toISOString(),
+          adminId: "admin",
+        },
+      });
+
+      const updatedClient = { ...selectedClient, walletBalance: newBalance };
+      setSelectedClient(updatedClient);
+      setClients(
+        clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)),
+      );
+
+      toast.success(`Recarga de $${cleanAmount.toLocaleString()} exitosa`);
+      setIsRechargeOpen(false);
+      setRechargeAmount("");
+    } catch (error) {
+      console.error("Error en recarga:", error);
+      toast.error("Error al procesar la recarga");
+    }
+  };
+
   const openWhatsApp = (phone, name) => {
     const msg = `Hola ${name || "Cliente"}, te escribimos de Tienda Genta...`;
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,
-      "_blank"
+      "_blank",
     );
   };
 
@@ -196,7 +262,7 @@ export default function Clients() {
   const filteredClients = clients.filter(
     (c) =>
       (c.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.phone && c.phone.includes(searchTerm))
+      (c.phone && c.phone.includes(searchTerm)),
   );
 
   if (loading) {
@@ -304,10 +370,11 @@ export default function Clients() {
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative flex flex-col">
           {selectedClient ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <div className="h-40 bg-gradient-to-r from-slate-800 to-slate-900 relative">
+              {/* CAMBIO VISUAL: Fondo degradado claro y limpio */}
+              <div className="h-40 bg-gradient-to-r from-blue-50 to-slate-100 relative">
                 <button
                   onClick={() => deleteClient(selectedClient.id)}
-                  className="absolute top-4 right-4 bg-white/10 text-white p-2 rounded-full hover:bg-red-500 hover:text-white transition z-10"
+                  className="absolute top-4 right-4 bg-white/50 text-slate-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition z-10 backdrop-blur-sm"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -359,6 +426,40 @@ export default function Clients() {
                   </button>
                 </div>
 
+                {/* SECCIÓN DE BILLETERA */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+                  <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100">
+                    <p className="text-xs font-bold text-green-600 uppercase mb-2 flex items-center gap-1">
+                      <Wallet size={12} /> Saldo en Billetera
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-3xl font-black text-green-700">
+                        ${(selectedClient.walletBalance || 0).toLocaleString()}
+                      </span>
+                      <button
+                        onClick={() => setIsRechargeOpen(true)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-green-700 transition flex items-center gap-1 shadow-lg shadow-green-600/20"
+                      >
+                        <DollarSign size={16} /> Recargar
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">
+                      Total Comprado
+                    </p>
+                    <span className="text-2xl font-black text-slate-700">
+                      $
+                      {getClientStats(
+                        selectedClient.phone,
+                      ).total.toLocaleString()}
+                    </span>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {getClientStats(selectedClient.phone).count} pedidos
+                    </p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
                   <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
                     <p className="text-xs font-bold text-slate-400 uppercase mb-2">
@@ -379,14 +480,30 @@ export default function Clients() {
                   </div>
                   <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
                     <p className="text-xs font-bold text-slate-400 uppercase mb-2">
-                      Dirección
+                      Ubicación
                     </p>
-                    <div className="flex items-start gap-3 text-sm text-slate-700 font-medium">
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-medium mb-2">
                       <div className="bg-white p-2 rounded-full shadow-sm">
-                        <MapPin size={14} />
+                        <Map size={14} />
                       </div>
-                      {selectedClient.address || "Sin dirección registrada"}
+                      {selectedClient.department || "Sin departamento"}
                     </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-medium">
+                      <div className="bg-white p-2 rounded-full shadow-sm">
+                        <Building2 size={14} />
+                      </div>
+                      {selectedClient.city || "Sin ciudad"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-2">
+                    Dirección de Envío
+                  </p>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-700 font-medium flex items-start gap-3">
+                    <MapPin size={16} className="text-slate-400 mt-0.5" />
+                    {selectedClient.address || "Sin dirección registrada"}
                   </div>
                 </div>
 
@@ -453,7 +570,7 @@ export default function Clients() {
                               </span>
                             </div>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
                   )}
@@ -496,7 +613,7 @@ export default function Clients() {
                 onChange={(e) => {
                   const val = e.target.value;
                   const formatted = val.replace(/(^\w|\s\w)/g, (m) =>
-                    m.toUpperCase()
+                    m.toUpperCase(),
                   );
                   setFormData({ ...formData, name: formatted });
                 }}
@@ -542,10 +659,87 @@ export default function Clients() {
         </div>
       )}
 
+      {/* MODAL RECARGAR SALDO */}
+      {isRechargeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <DollarSign className="text-green-600" /> Recargar Saldo
+              </h2>
+              <button onClick={() => setIsRechargeOpen(false)}>
+                <X className="text-slate-400 hover:text-red-500" />
+              </button>
+            </div>
+            <div className="mb-4 p-4 bg-green-50 rounded-xl border border-green-100">
+              <p className="text-sm text-slate-600">Cliente:</p>
+              <p className="font-bold text-slate-800">{selectedClient?.name}</p>
+              <p className="text-sm text-green-600 font-bold mt-2">
+                Saldo actual: $
+                {(selectedClient?.walletBalance || 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">
+                  Monto a recargar
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="$ 0"
+                    className="w-full pl-4 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-green-500 font-bold text-lg"
+                    value={rechargeAmount}
+                    onChange={handleRechargeChange}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[10000, 20000, 50000].map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setRechargeAmount(formatCurrency(amount))}
+                    className="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-700 rounded-xl font-bold text-sm transition"
+                  >
+                    +${amount.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleRecharge}
+                disabled={
+                  !rechargeAmount ||
+                  parseInt(rechargeAmount.replace(/\D/g, ""), 10) <= 0
+                }
+                className="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirmar Recarga
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 10px;
+        }
+        /* Ocultar flechas en inputs numéricos */
+        .no-spinner::-webkit-inner-spin-button,
+        .no-spinner::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .no-spinner {
+          -moz-appearance: textfield;
+        }
       `}</style>
     </div>
   );

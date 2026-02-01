@@ -31,7 +31,7 @@ export default function ClientDashboard() {
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
 
-  // 1. INICIALIZACIÓN PEREZOSA (LAZY INIT)
+  // 1. INICIALIZACIÓN DE USUARIO
   const [user, setUser] = useState(() => {
     try {
       const session = sessionStorage.getItem("shopUser");
@@ -42,32 +42,34 @@ export default function ClientDashboard() {
     }
   });
 
-  // 2. EFECTO #1: SOLO SEGURIDAD (REDIRECCIÓN)
-  // Este efecto solo se preocupa de si el usuario existe o no.
+  // 2. EFECTO: VERIFICAR SI HAY SESIÓN
   useEffect(() => {
     if (!user) {
-      toast.error("Debes iniciar sesión para ver tu cuenta");
       navigate("/");
     }
-  }, [user, navigate]); // Aquí sí podemos poner 'user' sin riesgo de bucles de datos
+  }, [user, navigate]);
 
-  // 3. EFECTO #2: SOLO DATOS EN VIVO (FIREBASE)
-  // Este efecto depende EXCLUSIVAMENTE del ID. Si el saldo cambia, el ID sigue siendo el mismo,
-  // por lo tanto, este efecto NO se reinicia (evitando el bucle), pero el onSnapshot sí actualiza el estado.
+  // 3. EFECTO: DATOS EN VIVO (CORREGIDO)
   useEffect(() => {
-    if (!user?.id) return; // Si no hay ID, no hacemos nada
+    if (!user?.id) return;
 
     try {
-      const userRef = doc(db, "users", user.id);
+      // [CORRECCIÓN CRÍTICA]
+      // Usamos la colección guardada en la sesión ("clients") en lugar de forzar "users".
+      // Si por alguna razón no existe, buscamos en "clients" por defecto para este dashboard.
+      const collectionName = user.collection || "clients";
+      const userRef = doc(db, collectionName, user.id);
 
       const unsubscribe = onSnapshot(userRef, (docSnap) => {
         if (docSnap.exists()) {
-          const updatedData = { id: docSnap.id, ...docSnap.data() };
+          // Mantenemos la colección original al actualizar
+          const updatedData = {
+            id: docSnap.id,
+            ...docSnap.data(),
+            collection: collectionName,
+          };
 
-          // Actualizamos el estado visual
           setUser(updatedData);
-
-          // Actualizamos la sesión local
           sessionStorage.setItem("shopUser", JSON.stringify(updatedData));
         }
       });
@@ -76,7 +78,7 @@ export default function ClientDashboard() {
     } catch (error) {
       console.error("Error conectando con base de datos en vivo", error);
     }
-  }, [user?.id]); // CORRECCIÓN: Dependemos solo del ID, que es un string estable.
+  }, [user?.id, user?.collection]);
 
   if (!user) return null;
 
@@ -130,7 +132,8 @@ export default function ClientDashboard() {
       {/* ENCABEZADO */}
       <div className="mb-10 text-center md:text-left">
         <h1 className="text-3xl font-black text-slate-800">
-          Hola, {user.name.split(" ")[0]} 👋
+          {/* Protección contra nombres nulos */}
+          Hola, {user.name?.split(" ")[0] || "Usuario"} 👋
         </h1>
         <p className="text-slate-500 mt-2">
           Bienvenido a tu oficina virtual. Aquí tienes el control de todo.

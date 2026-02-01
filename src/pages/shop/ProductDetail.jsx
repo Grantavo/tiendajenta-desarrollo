@@ -122,23 +122,31 @@ export default function ProductDetail() {
       itemCondition: "https://schema.org/NewCondition",
     },
   };
-  // ----------------------------------------------------
 
   const handleWhatsApp = () => {
     const message = `Hola, me interesa el producto: *${
       product.title
     }* que vi en la web por $${new Intl.NumberFormat("es-CO").format(
-      price
+      price,
     )}. ¿Está disponible?`;
     window.open(
       `https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`,
-      "_blank"
+      "_blank",
     );
+  };
+
+  // --- MEJORA DE LÓGICA REFACTORIZADA ---
+  const handleAddToCart = () => {
+    const qty = parseInt(quantity, 10);
+    if (qty > 0 && product) {
+      // Pasamos una copia del producto con la cantidad seleccionada
+      // Asegurándonos de que quantity sea un número puro
+      addToCart({ ...product, quantity: qty });
+    }
   };
 
   return (
     <div className="bg-white min-h-screen pb-20 pt-6">
-      {/* INYECCIÓN DE METADATOS Y JSON-LD */}
       <Helmet>
         <title>{`${product.title} | Tienda Jenta`}</title>
         <meta
@@ -300,7 +308,7 @@ export default function ProductDetail() {
 
             <div className="space-y-3">
               <button
-                onClick={() => addToCart({ ...product, quantity })}
+                onClick={handleAddToCart}
                 className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
               >
                 <ShoppingCart size={20} /> Agregar al Carrito

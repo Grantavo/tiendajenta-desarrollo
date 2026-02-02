@@ -1,33 +1,44 @@
 import React, { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import WhatsAppFloat from "../components/WhatsAppFloat";
+import { useCart } from "../context/CartContext";
 
-// 1. IMPORTAR FIREBASE (Para obtener el logo actualizado)
+// 1. IMPORTAR FIREBASE
 import { db } from "../firebase/config";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
+import { toast } from "sonner";
 
 // Iconos
 import {
   ShoppingCart,
   X,
-  Tag,
   Trash2,
   ArrowRight,
   CreditCard,
-  Copy,
   Check,
+  Plus,
+  Minus,
+  Wallet,
 } from "lucide-react";
 
 export default function ShopLayout() {
+  const navigate = useNavigate();
+  const { user } = useCart(); // Solo extraemos user, clearCart se eliminó por no usarse en esta sección
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
 
   // Estados Cupón
   const [couponCode, setCouponCode] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState(null);
-  const [couponMessage, setCouponMessage] = useState({ type: "", text: "" });
+  // Eliminado couponMessage por no ser usado en el renderizado
 
   // Estado para el Método de Pago
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -37,35 +48,25 @@ export default function ShopLayout() {
   useEffect(() => {
     const syncSettings = async () => {
       try {
-        // Consultamos la colección 'settings' de Firebase
         const q = await getDocs(collection(db, "settings"));
-
         if (!q.empty) {
-          // Tomamos el primer documento de configuración
           const settingsData = q.docs[0].data();
-
-          // Lo guardamos en localStorage para que el LoadingSpinner lo pueda leer rápido
           localStorage.setItem("shopSettings", JSON.stringify(settingsData));
-
-          // Disparamos un evento para avisar a otros componentes si es necesario
           window.dispatchEvent(new Event("storage"));
         }
       } catch (error) {
         console.error("Error sincronizando settings:", error);
       }
     };
-
     syncSettings();
   }, []);
 
   // Cargar datos (Carrito y Pagos)
   useEffect(() => {
     const loadData = () => {
-      // Carrito
       const savedCart = JSON.parse(localStorage.getItem("shopCart") || "[]");
       setCartItems(savedCart);
 
-      // Pagos (Solo activos)
       const savedPayments = JSON.parse(
         localStorage.getItem("shopPayments") || "[]",
       );
@@ -76,20 +77,42 @@ export default function ShopLayout() {
     return () => window.removeEventListener("storage", loadData);
   }, [isCartOpen]);
 
-  // Funciones Carrito
+  // --- FUNCIÓN ACTUALIZAR CANTIDAD ---
+  const updateQty = (id, delta) => {
+    const newCart = cartItems.map((item) => {
+      if (item.id === id) {
+        const currentQty = item.qty || 1;
+        const newQty = currentQty + delta;
+        const stockLimit = Number(item.stock) || 999;
+
+        if (newQty < 1) return item;
+        if (newQty > stockLimit) return item;
+
+        return { ...item, qty: newQty };
+      }
+      return item;
+    });
+    setCartItems(newCart);
+    localStorage.setItem("shopCart", JSON.stringify(newCart));
+  };
+
+  // --- FUNCIÓN AGREGAR (REFACTORIZADA: No abre el modal) ---
   const addToCart = (product) => {
     const existing = cartItems.find((item) => item.id === product.id);
+    const quantityToAdd = parseInt(product.quantity, 10) || 1;
+
     let newCart;
     if (existing) {
       newCart = cartItems.map((item) =>
-        item.id === product.id ? { ...item, qty: (item.qty || 1) + 1 } : item,
+        item.id === product.id
+          ? { ...item, qty: item.qty + quantityToAdd }
+          : item,
       );
     } else {
-      newCart = [...cartItems, { ...product, qty: 1 }];
+      newCart = [...cartItems, { ...product, qty: quantityToAdd }];
     }
     setCartItems(newCart);
     localStorage.setItem("shopCart", JSON.stringify(newCart));
-    setIsCartOpen(true);
   };
 
   const removeItem = (id) => {
@@ -100,24 +123,18 @@ export default function ShopLayout() {
   };
 
   const handleApplyCoupon = () => {
-    setCouponMessage({ type: "", text: "" });
     const allCoupons = JSON.parse(localStorage.getItem("shopCoupons") || "[]");
     const found = allCoupons.find(
       (c) => c.code === couponCode.toUpperCase() && c.active,
     );
     if (found) {
       setAppliedDiscount({ code: found.code, percent: found.discount });
-      setCouponMessage({
-        type: "success",
-        text: `¡Éxito! -${found.discount}% aplicado.`,
-      });
     } else {
       setAppliedDiscount(null);
-      setCouponMessage({ type: "error", text: "Cupón no válido." });
+      toast.error("Cupón no válido.");
     }
   };
 
-  // Cálculos
   const subtotal = cartItems.reduce(
     (acc, item) => acc + item.price * (item.qty || 1),
     0,
@@ -127,44 +144,73 @@ export default function ShopLayout() {
     : 0;
   const total = subtotal - discountAmount;
 
-  // --- FINALIZAR COMPRA (Checkout) ---
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (paymentMethods.length > 0 && !selectedPayment) {
       alert("Por favor selecciona un método de pago para continuar.");
       return;
     }
 
-    const settings = JSON.parse(localStorage.getItem("shopSettings") || "{}");
+    if (selectedPayment.type === "Billetera") {
+      if (!user) {
+        toast.error("Inicia sesión para pagar con billetera");
+        return;
+      }
 
+      try {
+        await runTransaction(db, async (transaction) => {
+          const userRef = doc(db, "users", user.email);
+          const userSnap = await transaction.get(userRef);
+          if (!userSnap.exists()) throw "Perfil de usuario no encontrado";
+
+          const currentBalance = Number(userSnap.data().balance) || 0;
+          if (currentBalance < total) throw "Saldo insuficiente en billetera";
+
+          transaction.update(userRef, { balance: currentBalance - total });
+
+          const orderRef = doc(collection(db, "orders"));
+          transaction.set(orderRef, {
+            customerEmail: user.email,
+            items: cartItems,
+            total: total,
+            paymentMethod: "Billetera",
+            status: "paid",
+            createdAt: serverTimestamp(),
+          });
+        });
+
+        toast.success("Pago exitoso.");
+        setCartItems([]);
+        localStorage.removeItem("shopCart");
+        setIsCartOpen(false);
+        navigate("/thank-you");
+        return;
+      } catch (error) {
+        toast.error(
+          typeof error === "string" ? error : "Error al procesar el pago",
+        );
+        return;
+      }
+    }
+
+    const settings = JSON.parse(localStorage.getItem("shopSettings") || "{}");
     let rawPhone = settings.phone || settings.whatsapp || "";
     let phone = rawPhone.replace(/\D/g, "");
-
-    if (phone.length === 10) {
-      phone = `57${phone}`;
-    } else if (phone.length > 0 && !phone.startsWith("57")) {
-      phone = `57${phone}`;
-    }
+    if (phone.length === 10) phone = `57${phone}`;
+    else if (phone.length > 0 && !phone.startsWith("57")) phone = `57${phone}`;
     if (!phone) phone = "573000000000";
 
     let message = `Hola, quiero realizar el siguiente pedido:\n\n`;
     cartItems.forEach((item) => {
-      message += `• ${item.qty || 1}x ${
-        item.title
-      } - $${item.price.toLocaleString()}\n`;
+      message += `• ${item.qty || 1}x ${item.title} - $${item.price.toLocaleString()}\n`;
     });
-
     message += `\nSubtotal: $${subtotal.toLocaleString()}`;
     if (appliedDiscount) {
       message += `\n🎁 Cupón (${appliedDiscount.code}): -${appliedDiscount.percent}%`;
       message += `\n✅ Descuento: -$${discountAmount.toLocaleString()}`;
     }
     message += `\n\n*TOTAL A PAGAR: $${total.toLocaleString()}*`;
-
-    if (selectedPayment) {
+    if (selectedPayment)
       message += `\n\n💳 *Método de Pago:* ${selectedPayment.type}`;
-    }
-
-    message += `\n\nQuedo atento para enviar el comprobante.`;
 
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
@@ -178,13 +224,11 @@ export default function ShopLayout() {
         cartCount={cartItems.length}
         onOpenCart={() => setIsCartOpen(true)}
       />
-
       <main className="flex-grow w-full">
         <Outlet context={{ addToCart }} />
       </main>
       <Footer />
 
-      {/* --- SIDEBAR CARRITO --- */}
       <div
         className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
           isCartOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -244,10 +288,34 @@ export default function ShopLayout() {
                     <h4 className="font-bold text-slate-800 text-sm line-clamp-2">
                       {item.title}
                     </h4>
-                    <div className="flex justify-between items-end mt-1">
-                      <span className="font-bold text-blue-600 text-sm">
-                        ${item.price.toLocaleString()}
-                      </span>
+                    <div className="flex justify-between items-end mt-2">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">
+                          Precio Unit.
+                        </span>
+                        <span className="font-bold text-blue-600 text-sm">
+                          ${item.price.toLocaleString()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                        <button
+                          onClick={() => updateQty(item.id, -1)}
+                          className="p-1.5 hover:bg-gray-200 transition text-slate-600"
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span className="px-3 text-xs font-bold text-slate-800 min-w-[24px] text-center">
+                          {item.qty || 1}
+                        </span>
+                        <button
+                          onClick={() => updateQty(item.id, 1)}
+                          className="p-1.5 hover:bg-gray-200 transition text-slate-600"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+
                       <button
                         onClick={() => removeItem(item.id)}
                         className="text-red-400 hover:text-red-600 p-1"
@@ -259,106 +327,89 @@ export default function ShopLayout() {
                 </div>
               ))}
 
-              {paymentMethods.length > 0 && (
-                <div className="mt-6 border-t border-slate-200 pt-6">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                    <CreditCard size={14} /> Selecciona Método de Pago
-                  </h3>
-                  <div className="space-y-3">
-                    {paymentMethods.map((pm) => (
-                      <div
-                        key={pm.id}
-                        onClick={() => setSelectedPayment(pm)}
-                        className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                          selectedPayment?.id === pm.id
-                            ? "bg-blue-50 border-blue-500 ring-1 ring-blue-500"
-                            : "bg-white border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <span
-                            className={`font-bold text-sm ${
-                              pm.type === "Nequi"
-                                ? "text-purple-800"
-                                : "text-slate-800"
-                            }`}
-                          >
-                            {pm.type}
-                          </span>
-                          {selectedPayment?.id === pm.id && (
-                            <Check size={16} className="text-blue-600" />
-                          )}
-                        </div>
+              <div className="mt-6 border-t border-slate-200 pt-6">
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                  <CreditCard size={14} /> Selecciona Método de Pago
+                </h3>
+                <div className="space-y-3">
+                  <div
+                    onClick={() => setSelectedPayment({ type: "Billetera" })}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.type === "Billetera" ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Wallet size={16} className="text-blue-600" />
+                        <span className="font-bold text-sm text-slate-800">
+                          Mi Billetera
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-green-600">
+                        ${(Number(user?.balance) || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    {user && (Number(user.balance) || 0) < total && (
+                      <div className="mt-2 flex justify-between items-center">
+                        <p className="text-[10px] text-red-500 font-bold italic">
+                          Saldo insuficiente
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsCartOpen(false);
+                            navigate("/perfil");
+                          }}
+                          className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-bold"
+                        >
+                          Recargar
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
+                  {paymentMethods.map((pm) => (
+                    <div
+                      key={pm.id}
+                      onClick={() => setSelectedPayment(pm)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === pm.id ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-sm">{pm.type}</span>
                         {selectedPayment?.id === pm.id && (
-                          <div className="text-xs text-slate-600 mt-2 bg-white/50 p-2 rounded border border-blue-100">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="font-mono font-bold select-all">
-                                {pm.accountNumber}
-                              </span>
-                              <span className="text-[10px] text-blue-400">
-                                Copiar número
-                              </span>
-                            </div>
-                            {pm.instructions && (
-                              <p className="italic opacity-80">
-                                {pm.instructions}
-                              </p>
-                            )}
-                          </div>
+                          <Check size={16} className="text-blue-600" />
                         )}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
 
         {cartItems.length > 0 && (
           <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] shrink-0 z-20">
-            <div className="mb-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="CÓDIGO CUPÓN"
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500 uppercase"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  disabled={!!appliedDiscount}
-                />
-                {appliedDiscount ? (
-                  <button
-                    onClick={() => {
-                      setAppliedDiscount(null);
-                      setCouponCode("");
-                      setCouponMessage({ type: "", text: "" });
-                    }}
-                    className="bg-red-100 text-red-600 px-3 py-2 rounded-lg text-xs font-bold"
-                  >
-                    X
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleApplyCoupon}
-                    className="bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-bold"
-                  >
-                    Aplicar
-                  </button>
-                )}
-              </div>
-              {couponMessage.text && (
-                <p
-                  className={`text-[10px] mt-1 font-bold ${
-                    couponMessage.type === "success"
-                      ? "text-green-600"
-                      : "text-red-500"
-                  }`}
-                >
-                  {couponMessage.text}
-                </p>
-              )}
+            <div className="mb-4 flex gap-2">
+              <input
+                type="text"
+                placeholder="CÓDIGO CUPÓN"
+                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold focus:border-blue-500 uppercase outline-none"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                disabled={!!appliedDiscount}
+              />
+              <button
+                onClick={
+                  appliedDiscount
+                    ? () => {
+                        setAppliedDiscount(null);
+                        setCouponCode("");
+                      }
+                    : handleApplyCoupon
+                }
+                className={`px-3 py-2 rounded-lg text-xs font-bold ${appliedDiscount ? "bg-red-100 text-red-600" : "bg-slate-800 text-white"}`}
+              >
+                {appliedDiscount ? "X" : "Aplicar"}
+              </button>
             </div>
 
             <div className="space-y-1 mb-4 text-sm text-slate-600">
@@ -372,7 +423,7 @@ export default function ShopLayout() {
                   <span>-${discountAmount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xl font-black text-slate-900 pt-2 border-t border-gray-100">
+              <div className="flex justify-between text-xl font-black text-slate-900 pt-2 border-t">
                 <span>Total</span>
                 <span>${total.toLocaleString()}</span>
               </div>
@@ -380,14 +431,17 @@ export default function ShopLayout() {
 
             <button
               onClick={handleCheckout}
-              className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition shadow-lg shadow-green-600/30 flex items-center justify-center gap-2"
+              disabled={
+                selectedPayment?.type === "Billetera" &&
+                Number(user?.balance || 0) < total
+              }
+              className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               Completar Pedido <ArrowRight size={20} />
             </button>
           </div>
         )}
       </div>
-
       <WhatsAppFloat hide={isCartOpen} />
     </div>
   );

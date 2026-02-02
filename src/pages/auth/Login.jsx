@@ -31,11 +31,14 @@ export default function Login() {
     setError("");
     setLoading(true);
 
+    // NORMALIZACIÓN: Forzamos minúsculas para que coincida con el ID de 'clients'
+    const cleanEmail = formData.email.trim().toLowerCase();
+
     try {
-      // 1. Consultar Usuario
+      // 1. Consultar Usuario en la colección 'users'
       const q = query(
         collection(db, "users"),
-        where("email", "==", formData.email.trim())
+        where("email", "==", cleanEmail),
       );
       const querySnapshot = await getDocs(q);
 
@@ -56,16 +59,21 @@ export default function Login() {
       }
 
       // --- PASO CRÍTICO PARA PERMISOS ---
-      // 3. Descargar los ROLES actuales de la nube antes de entrar
-      // Esto asegura que el Sidebar tenga la "llave" para abrir los menús
       const rolesSnap = await getDocs(collection(db, "roles"));
       const rolesData = rolesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       localStorage.setItem("shopRoles", JSON.stringify(rolesData));
 
       // 4. Sanitizar y Guardar Sesión
-      const safeUser = { ...userData };
+      // Aseguramos que el email guardado en la sesión sea el normalizado
+      const safeUser = {
+        ...userData,
+        email: cleanEmail,
+      };
       delete safeUser.password;
+
       sessionStorage.setItem("shopUser", JSON.stringify(safeUser));
+      // También lo guardamos en localStorage para persistencia del carrito si es necesario
+      localStorage.setItem("shopUser", JSON.stringify(safeUser));
 
       toast.success(`¡Bienvenido de nuevo, ${safeUser.name}!`);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
-import { Helmet } from "react-helmet-async"; // IMPORTACIÓN CRÍTICA PARA SEO
+import { Helmet } from "react-helmet-async";
 import {
   ShoppingCart,
   MessageCircle,
@@ -21,6 +21,8 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeImage, setActiveImage] = useState(0);
+  const [quantity, setQuantity] = useState(1);
 
   const [shopPhone] = useState(() => {
     try {
@@ -32,9 +34,6 @@ export default function ProductDetail() {
       return "573000000000";
     }
   });
-
-  const [activeImage, setActiveImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -97,7 +96,6 @@ export default function ProductDetail() {
   const price = Number(product.price) || 0;
   const oldPrice = Number(product.oldPrice) || 0;
 
-  // --- LÓGICA SEO: ESTRUCTURA DE DATOS (SCHEMA.ORG) ---
   const structuredData = {
     "@context": "https://schema.org/",
     "@type": "Product",
@@ -135,13 +133,10 @@ export default function ProductDetail() {
     );
   };
 
-  // --- MEJORA DE LÓGICA REFACTORIZADA ---
   const handleAddToCart = () => {
-    const qty = parseInt(quantity, 10);
-    if (qty > 0 && product) {
-      // Pasamos una copia del producto con la cantidad seleccionada
-      // Asegurándonos de que quantity sea un número puro
-      addToCart({ ...product, quantity: qty });
+    if (product && quantity > 0) {
+      // FIX: Enviar UN SOLO parámetro con quantity incluido
+      addToCart({ ...product, quantity: quantity });
     }
   };
 
@@ -180,7 +175,7 @@ export default function ProductDetail() {
           <ChevronLeft
             size={20}
             className="group-hover:-translate-x-1 transition-transform"
-          />{" "}
+          />
           Volver al catálogo
         </button>
 
@@ -287,6 +282,7 @@ export default function ProductDetail() {
               <span className="font-bold text-slate-800">Cantidad:</span>
               <div className="flex items-center border border-slate-300 rounded-lg bg-white">
                 <button
+                  type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   className="p-3 hover:bg-slate-100 text-slate-600 transition"
                 >
@@ -296,8 +292,11 @@ export default function ProductDetail() {
                   {quantity}
                 </span>
                 <button
+                  type="button"
                   onClick={() =>
-                    setQuantity((q) => Math.min(Number(product.stock), q + 1))
+                    setQuantity((q) =>
+                      Math.min(Number(product.stock || 0), q + 1),
+                    )
                   }
                   className="p-3 hover:bg-slate-100 text-slate-600 transition"
                 >

@@ -116,7 +116,27 @@ export default function App() {
         </Suspense>
       </BrowserRouter>
 
-      <Toaster position="top-center" richColors />
+      <Toaster 
+        position="top-center" 
+        richColors 
+        duration={1500}
+        toastOptions={{
+          style: {
+            width: "fit-content",
+            minWidth: "auto",
+            display: "flex",
+            justifyContent: "center",
+            margin: "0 auto",
+            padding: "10px 20px",
+            fontSize: "16px",
+            fontWeight: "bold",
+          },
+          classNames: {
+            toast: "justify-center shadow-xl", 
+            title: "text-center",
+          }
+        }}
+      />
     </CartProvider>
   );
 }

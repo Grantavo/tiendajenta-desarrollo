@@ -135,8 +135,8 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (product && quantity > 0) {
-      // FIX: Enviar UN SOLO parámetro con quantity incluido
-      addToCart({ ...product, quantity: quantity });
+      // FIX: Enviar product puro y luego la cantidad como segundo argumento
+      addToCart(product, quantity);
     }
   };
 

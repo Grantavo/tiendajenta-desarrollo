@@ -112,20 +112,28 @@ export default function AuthModal({ isOpen, onClose }) {
         return;
       }
 
-      const userDoc = snap.docs[0];
-      const userData = userDoc.data();
+      let matchedUser = null;
+      let matchedDocId = null;
 
-      // 3. Validar Password
-      if (userData.password !== formData.password.trim()) {
+      // REVISAR CADA COINCIDENCIA (Por si hay duplicados con/sin clave)
+      snap.docs.forEach((doc) => {
+        const data = doc.data();
+        if (data.password === formData.password.trim()) {
+           matchedUser = data;
+           matchedDocId = doc.id;
+        }
+      });
+
+      if (!matchedUser) {
         toast.error("Contraseña incorrecta.");
         setLoading(false);
         return;
       }
 
-      // 4. Crear Sesión
+      // 4. Crear Sesión con el usuario CORRECTO encontrado
       const sessionData = {
-        id: userDoc.id,
-        ...userData,
+        id: matchedDocId,
+        ...matchedUser,
         collection: isStaff ? "users" : "clients",
       };
       delete sessionData.password;
@@ -134,14 +142,19 @@ export default function AuthModal({ isOpen, onClose }) {
 
       toast.success(`Bienvenido, ${sessionData.name}`);
 
-      // [CAMBIO] Solo cerramos el modal, NO redirigimos
+      // 5. Notificar a toda la app que hubo login (CartContext / Navbar)
+      window.dispatchEvent(new Event("auth-change"));
+
+      // [CAMBIO] Solo cerramos el modal y redirigimos
       onClose();
 
-      // Solo redirigimos si es admin
+      // Redirigir según rol
       if (isStaff && sessionData.roleId) {
         window.location.href = "/admin";
+      } else {
+        // CLIENTES: Redirigir al INICIO para fomentar ventas
+        window.location.href = "/";
       }
-      // Los clientes se quedan en la página actual
     } catch (error) {
       console.error(error);
       toast.error("Error al ingresar.");
@@ -178,7 +191,8 @@ export default function AuthModal({ isOpen, onClose }) {
         password: formData.password.trim(),
         phone: formData.phone,
         role: "client",
-        walletBalance: 0,
+        balance: 0, // UNIFICADO: Usamos 'balance' igual que en Admin
+        points: 0,
         points: 0,
         createdAt: serverTimestamp(),
       };
@@ -197,10 +211,14 @@ export default function AuthModal({ isOpen, onClose }) {
 
       sessionStorage.setItem("shopUser", JSON.stringify(sessionData));
 
+      // 5. Notificar a toda la app
+      window.dispatchEvent(new Event("auth-change"));
+
       toast.success("Cuenta creada exitosamente.");
 
-      // [CAMBIO] Solo cerramos el modal, NO redirigimos
+      // [CAMBIO] Redirigir al perfil
       onClose();
+      window.location.href = "/perfil";
     } catch (error) {
       console.error(error);
       toast.error("Error al registrarse.");

@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 
 // FIREBASE
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { db } from "../../firebase/config";
 
 // MODALES
@@ -29,6 +29,7 @@ export default function ClientDashboard() {
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
 
   // 1. INICIALIZACIÓN DE USUARIO
@@ -50,27 +51,47 @@ export default function ClientDashboard() {
   }, [user, navigate]);
 
   // 3. EFECTO: DATOS EN VIVO (CORREGIDO)
+  // 3. EFECTO: DATOS EN VIVO (CORREGIDO - SYNC POR EMAIL)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.email) return;
 
     try {
-      // [CORRECCIÓN CRÍTICA]
-      // Usamos la colección guardada en la sesión ("clients") en lugar de forzar "users".
-      // Si por alguna razón no existe, buscamos en "clients" por defecto para este dashboard.
-      const collectionName = user.collection || "clients";
-      const userRef = doc(db, collectionName, user.id);
+      // Buscamos en la colección "clients" alguien con este correo
+      // Esto conecta la autenticación (users) con los datos del negocio (clients)
+      const q = query(
+        collection(db, "clients"),
+        where("email", "==", user.email)
+      );
 
-      const unsubscribe = onSnapshot(userRef, (docSnap) => {
-        if (docSnap.exists()) {
-          // Mantenemos la colección original al actualizar
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+
+        if (!querySnapshot.empty) {
+          // Manejo de duplicados: Buscar el cliente más reciente (por fecha de creación)
+          // Si no hay fecha de creación, usamos el orden por defecto
+          const allMatches = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          
+          // Ordenar descendente por createdAt (si existe)
+          allMatches.sort((a, b) => {
+            const dateA = a.createdAt?.seconds || 0;
+            const dateB = b.createdAt?.seconds || 0;
+            return dateB - dateA; // El más nuevo primero
+          });
+
+          // Tomamos el primero (el más reciente)
+          const clientData = allMatches[0];
+          
           const updatedData = {
-            id: docSnap.id,
-            ...docSnap.data(),
-            collection: collectionName,
+            ...user, 
+            ...clientData, 
+            id: clientData.id, 
+            collection: "clients",
           };
 
-          setUser(updatedData);
-          sessionStorage.setItem("shopUser", JSON.stringify(updatedData));
+          // Evitar loops infinitos
+          if (JSON.stringify(updatedData) !== JSON.stringify(user)) {
+             setUser(updatedData);
+             sessionStorage.setItem("shopUser", JSON.stringify(updatedData));
+          }
         }
       });
 
@@ -78,7 +99,7 @@ export default function ClientDashboard() {
     } catch (error) {
       console.error("Error conectando con base de datos en vivo", error);
     }
-  }, [user?.id, user?.collection]);
+  }, [user?.email]);
 
   if (!user) return null;
 
@@ -94,7 +115,7 @@ export default function ClientDashboard() {
     },
     {
       title: "Billetera Virtual",
-      desc: `Saldo disponible: $${(user.walletBalance || 0).toLocaleString()}`,
+      desc: `Saldo disponible: $${(user.balance || 0).toLocaleString()}`,
       icon: <Wallet size={32} />,
       color: "text-green-600",
       bg: "bg-green-50",
@@ -163,7 +184,7 @@ export default function ClientDashboard() {
             {item.isWallet ? (
               <>
                 <p className="text-lg font-black text-green-600 mt-1">
-                  ${(user.walletBalance || 0).toLocaleString()}
+                  ${(user.balance || 0).toLocaleString()}
                 </p>
                 <div className="mt-3 flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">
                   <ArrowUpCircle size={14} /> Recargar

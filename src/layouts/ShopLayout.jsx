@@ -3,9 +3,11 @@ import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import WhatsAppFloat from "../components/WhatsAppFloat";
+
+// IMPORTAR EL CONTEXTO DEL CARRITO (YA TIENE SINCRONIZACIÓN)
 import { useCart } from "../context/CartContext";
 
-// 1. IMPORTAR FIREBASE
+// FIREBASE
 import { db } from "../firebase/config";
 import {
   collection,
@@ -31,20 +33,22 @@ import {
 
 export default function ShopLayout() {
   const navigate = useNavigate();
-  const { user } = useCart(); // Solo extraemos user, clearCart se eliminó por no usarse en esta sección
+
+  // USAR EL CONTEXTO DEL CARRITO (sincronización automática)
+  const { user, cart, addToCart, removeFromCart, clearCart, cartCount } =
+    useCart();
+
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState([]);
 
   // Estados Cupón
   const [couponCode, setCouponCode] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState(null);
-  // Eliminado couponMessage por no ser usado en el renderizado
 
   // Estado para el Método de Pago
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // --- NUEVO: EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO) ---
+  // --- EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO) ---
   useEffect(() => {
     const syncSettings = async () => {
       try {
@@ -61,65 +65,42 @@ export default function ShopLayout() {
     syncSettings();
   }, []);
 
-  // Cargar datos (Carrito y Pagos)
+  // Cargar métodos de pago
   useEffect(() => {
-    const loadData = () => {
-      const savedCart = JSON.parse(localStorage.getItem("shopCart") || "[]");
-      setCartItems(savedCart);
-
+    const loadPayments = () => {
       const savedPayments = JSON.parse(
         localStorage.getItem("shopPayments") || "[]",
       );
       setPaymentMethods(savedPayments.filter((p) => p.status === "active"));
     };
-    loadData();
-    window.addEventListener("storage", loadData);
-    return () => window.removeEventListener("storage", loadData);
-  }, [isCartOpen]);
+    loadPayments();
+    window.addEventListener("storage", loadPayments);
+    return () => window.removeEventListener("storage", loadPayments);
+  }, []);
 
   // --- FUNCIÓN ACTUALIZAR CANTIDAD ---
-  const updateQty = (id, delta) => {
-    const newCart = cartItems.map((item) => {
-      if (item.id === id) {
-        const currentQty = item.qty || 1;
-        const newQty = currentQty + delta;
-        const stockLimit = Number(item.stock) || 999;
+  const updateQty = (productId, delta) => {
+    const item = cart.find((i) => i.id === productId);
+    if (!item) return;
 
-        if (newQty < 1) return item;
-        if (newQty > stockLimit) return item;
+    const newQty = (item.quantity || 1) + delta;
+    const stockLimit = Number(item.stock) || 999;
 
-        return { ...item, qty: newQty };
-      }
-      return item;
-    });
-    setCartItems(newCart);
-    localStorage.setItem("shopCart", JSON.stringify(newCart));
-  };
-
-  // --- FUNCIÓN AGREGAR (REFACTORIZADA: No abre el modal) ---
-  const addToCart = (product) => {
-    const existing = cartItems.find((item) => item.id === product.id);
-    const quantityToAdd = parseInt(product.quantity, 10) || 1;
-
-    let newCart;
-    if (existing) {
-      newCart = cartItems.map((item) =>
-        item.id === product.id
-          ? { ...item, qty: item.qty + quantityToAdd }
-          : item,
-      );
-    } else {
-      newCart = [...cartItems, { ...product, qty: quantityToAdd }];
+    if (newQty < 1) {
+      removeFromCart(productId);
+      return;
     }
-    setCartItems(newCart);
-    localStorage.setItem("shopCart", JSON.stringify(newCart));
-  };
 
-  const removeItem = (id) => {
-    const newCart = cartItems.filter((i) => i.id !== id);
-    setCartItems(newCart);
-    localStorage.setItem("shopCart", JSON.stringify(newCart));
-    if (newCart.length === 0) setAppliedDiscount(null);
+    if (newQty > stockLimit) {
+      toast.error(`Stock máximo: ${stockLimit}`);
+      return;
+    }
+
+    // Remover el item y agregarlo con la nueva cantidad
+    removeFromCart(productId);
+    setTimeout(() => {
+      addToCart(item, newQty);
+    }, 0);
   };
 
   const handleApplyCoupon = () => {
@@ -129,14 +110,16 @@ export default function ShopLayout() {
     );
     if (found) {
       setAppliedDiscount({ code: found.code, percent: found.discount });
+      toast.success(`Cupón aplicado: -${found.discount}%`);
     } else {
       setAppliedDiscount(null);
       toast.error("Cupón no válido.");
     }
   };
 
-  const subtotal = cartItems.reduce(
-    (acc, item) => acc + item.price * (item.qty || 1),
+  // Cálculos
+  const subtotal = cart.reduce(
+    (acc, item) => acc + item.price * (item.quantity || 1),
     0,
   );
   const discountAmount = appliedDiscount
@@ -150,7 +133,8 @@ export default function ShopLayout() {
       return;
     }
 
-    if (selectedPayment.type === "Billetera") {
+    // PAGO CON BILLETERA
+    if (selectedPayment?.type === "Billetera") {
       if (!user) {
         toast.error("Inicia sesión para pagar con billetera");
         return;
@@ -158,7 +142,7 @@ export default function ShopLayout() {
 
       try {
         await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, "users", user.email);
+          const userRef = doc(db, "clients", user.email);
           const userSnap = await transaction.get(userRef);
           if (!userSnap.exists()) throw "Perfil de usuario no encontrado";
 
@@ -170,7 +154,7 @@ export default function ShopLayout() {
           const orderRef = doc(collection(db, "orders"));
           transaction.set(orderRef, {
             customerEmail: user.email,
-            items: cartItems,
+            items: cart,
             total: total,
             paymentMethod: "Billetera",
             status: "paid",
@@ -179,8 +163,7 @@ export default function ShopLayout() {
         });
 
         toast.success("Pago exitoso.");
-        setCartItems([]);
-        localStorage.removeItem("shopCart");
+        clearCart();
         setIsCartOpen(false);
         navigate("/thank-you");
         return;
@@ -192,6 +175,7 @@ export default function ShopLayout() {
       }
     }
 
+    // PAGO POR WHATSAPP
     const settings = JSON.parse(localStorage.getItem("shopSettings") || "{}");
     let rawPhone = settings.phone || settings.whatsapp || "";
     let phone = rawPhone.replace(/\D/g, "");
@@ -200,8 +184,8 @@ export default function ShopLayout() {
     if (!phone) phone = "573000000000";
 
     let message = `Hola, quiero realizar el siguiente pedido:\n\n`;
-    cartItems.forEach((item) => {
-      message += `• ${item.qty || 1}x ${item.title} - $${item.price.toLocaleString()}\n`;
+    cart.forEach((item) => {
+      message += `• ${item.quantity || 1}x ${item.title} - $${item.price.toLocaleString()}\n`;
     });
     message += `\nSubtotal: $${subtotal.toLocaleString()}`;
     if (appliedDiscount) {
@@ -220,10 +204,7 @@ export default function ShopLayout() {
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col relative">
-      <Navbar
-        cartCount={cartItems.length}
-        onOpenCart={() => setIsCartOpen(true)}
-      />
+      <Navbar cartCount={cartCount} onOpenCart={() => setIsCartOpen(true)} />
       <main className="flex-grow w-full">
         <Outlet context={{ addToCart }} />
       </main>
@@ -245,7 +226,7 @@ export default function ShopLayout() {
           <h2 className="font-bold text-xl flex items-center gap-2 text-slate-800">
             <ShoppingCart className="text-blue-600" /> Tu Carrito{" "}
             <span className="text-sm font-normal text-slate-400">
-              ({cartItems.length})
+              ({cart.length})
             </span>
           </h2>
           <button
@@ -257,7 +238,7 @@ export default function ShopLayout() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 bg-gray-50 custom-scrollbar">
-          {cartItems.length === 0 ? (
+          {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
               <ShoppingCart size={64} className="opacity-20" />
               <p>Tu carrito está vacío</p>
@@ -270,15 +251,15 @@ export default function ShopLayout() {
             </div>
           ) : (
             <div className="space-y-4 pb-4">
-              {cartItems.map((item, idx) => (
+              {cart.map((item, idx) => (
                 <div
                   key={idx}
                   className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-4"
                 >
                   <div className="w-16 h-16 bg-gray-50 rounded-lg flex-shrink-0">
-                    {item.images && item.images[0] && (
+                    {item.image && (
                       <img
-                        src={item.images[0]}
+                        src={item.image}
                         alt=""
                         className="w-full h-full object-contain mix-blend-multiply"
                       />
@@ -306,7 +287,7 @@ export default function ShopLayout() {
                           <Minus size={14} />
                         </button>
                         <span className="px-3 text-xs font-bold text-slate-800 min-w-[24px] text-center">
-                          {item.qty || 1}
+                          {item.quantity || 1}
                         </span>
                         <button
                           onClick={() => updateQty(item.id, 1)}
@@ -317,7 +298,7 @@ export default function ShopLayout() {
                       </div>
 
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeFromCart(item.id)}
                         className="text-red-400 hover:text-red-600 p-1"
                       >
                         <Trash2 size={16} />
@@ -356,7 +337,7 @@ export default function ShopLayout() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setIsCartOpen(false);
-                            navigate("/perfil");
+                            navigate("/mi-cuenta");
                           }}
                           className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-bold"
                         >
@@ -386,7 +367,7 @@ export default function ShopLayout() {
           )}
         </div>
 
-        {cartItems.length > 0 && (
+        {cart.length > 0 && (
           <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] shrink-0 z-20">
             <div className="mb-4 flex gap-2">
               <input

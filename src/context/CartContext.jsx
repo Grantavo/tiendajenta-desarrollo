@@ -6,7 +6,6 @@ import {
   useEffect,
   useMemo,
   useCallback,
-  useRef,
 } from "react";
 import { toast } from "sonner";
 
@@ -17,8 +16,8 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
-  // 1. INICIALIZACIÓN LAZY: Carga inmediata sin disparar efectos
-  const [user, setUser] = useState(() => {
+  // 1. FUNCIÓN PARA LEER USUARIO (Reutilizable)
+  const getUserFromStorage = () => {
     try {
       const session =
         sessionStorage.getItem("shopUser") || localStorage.getItem("shopUser");
@@ -26,12 +25,15 @@ export function CartProvider({ children }) {
         const u = JSON.parse(session);
         return u?.email ? { ...u, email: u.email.toLowerCase().trim() } : null;
       }
-    } catch {
-      return null;
+    } catch (error) {
+      console.error(error);
     }
     return null;
-  });
+  };
 
+  const [user, setUser] = useState(getUserFromStorage);
+
+  // 2. ESTADO DEL CARRITO
   const [cart, setCart] = useState(() => {
     try {
       const local = localStorage.getItem("jenta_cart");
@@ -41,67 +43,72 @@ export function CartProvider({ children }) {
     }
   });
 
-  const cartRef = useRef(cart);
+  // --- NUEVO: ESCUCHADOR DE EVENTOS DE LOGIN/LOGOUT ---
   useEffect(() => {
-    cartRef.current = cart;
-  }, [cart]);
+    // Función que recarga el usuario
+    const handleAuthChange = () => setUser(getUserFromStorage());
 
-  // --- 2. SUSCRIPCIÓN AL SALDO (COLECCIÓN CLIENTS) ---
+    // Escuchamos el evento personalizado 'auth-change' (Mismo Tab)
+    window.addEventListener("auth-change", handleAuthChange);
+    // Escuchamos el evento 'storage' (Entre Tabs/Ventanas)
+    window.addEventListener("storage", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, []);
+
+  // 3. SINCRONIZACIÓN USER DATA (Firebase)
   useEffect(() => {
-    const email = user?.email;
-    if (!email) return; // Si no hay email, no hacemos nada. No hay setStates aquí.
+    if (!user?.email) return;
+    const cleanEmail = user.email.toLowerCase().trim();
 
-    const cleanEmail = email.toLowerCase().trim();
+    const collectionName = user.collection || "clients";
+    const docId = user.id;
+    if (!docId) return;
+
     const unsubClient = onSnapshot(
-      doc(db, "clients", cleanEmail),
+      doc(db, collectionName, docId),
       (docSnap) => {
         if (docSnap.exists()) {
           const cloudData = docSnap.data();
-          // Solo actualizamos si los datos son diferentes para evitar loops
           setUser((prev) => {
             if (prev?.balance === cloudData.balance) return prev;
             return { ...prev, ...cloudData, email: cleanEmail };
           });
         }
       },
-      (error) => {
-        console.error("Error balance:", error);
-      },
+      (error) => console.error("Error cliente:", error),
     );
-
     return () => unsubClient();
   }, [user?.email]);
 
-  // --- 3. SUSCRIPCIÓN AL CARRITO EN NUBE ---
+  // 4. SINCRONIZACIÓN CARRITO (Nube <-> Local)
   useEffect(() => {
-    const email = user?.email;
-    if (!email) return;
+    if (!user?.email) return;
 
-    const unsubCart = onSnapshot(doc(db, "carts", email), (docSnap) => {
+    const unsubCart = onSnapshot(doc(db, "carts", user.email), (docSnap) => {
       if (docSnap.exists()) {
         const cloudItems = docSnap.data().items || [];
-        if (JSON.stringify(cloudItems) !== JSON.stringify(cartRef.current)) {
-          setCart(cloudItems);
-        }
+        setCart((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(cloudItems)) return prev;
+          return cloudItems;
+        });
+      } else {
+        // Crear carrito vacío en nube si es usuario nuevo
+        setDoc(doc(db, "carts", user.email), { items: [] }, { merge: true });
       }
     });
-
     return () => unsubCart();
   }, [user?.email]);
 
-  // --- 4. DERIVACIÓN DE ESTADO PURA ---
-  // isSyncing es true SOLO si hay un email pero aún no hemos recibido el balance de Firebase
-  const isSyncing = useMemo(() => {
-    if (!user?.email) return false;
-    return user.balance === undefined;
-  }, [user]);
-
-  // --- 5. BACKUP LOCAL ---
+  // 5. BACKUP LOCAL
   useEffect(() => {
     localStorage.setItem("jenta_cart", JSON.stringify(cart));
   }, [cart]);
 
-  // --- 6. ACCIONES DEL CARRITO ---
+  // 6. ACCIONES
   const addToCart = useCallback(
     async (product, quantityToAdd) => {
       const amount = Math.max(1, Number(quantityToAdd) || 1);
@@ -115,13 +122,13 @@ export function CartProvider({ children }) {
         if (idx >= 0) {
           const newQty = prev[idx].quantity + amount;
           if (newQty > stockLimit) {
-            toast.error(`Solo quedan ${stockLimit} unidades.`);
+            toast.error(`Stock máximo: ${stockLimit}`);
             return prev;
           }
           newCart[idx] = { ...newCart[idx], quantity: newQty };
         } else {
           if (amount > stockLimit) {
-            toast.error(`Solo quedan ${stockLimit} unidades.`);
+            toast.error(`Stock máximo: ${stockLimit}`);
             return prev;
           }
           newCart.push({
@@ -137,9 +144,13 @@ export function CartProvider({ children }) {
         }
 
         if (email) {
-          setDoc(doc(db, "carts", email), { items: newCart }, { merge: true });
+          setDoc(
+            doc(db, "carts", email),
+            { items: newCart },
+            { merge: true },
+          ).catch((e) => console.error("Error sync cart:", e));
         }
-        toast.success("Carrito actualizado");
+        toast.success("Agregado al carrito");
         return newCart;
       });
     },
@@ -155,7 +166,7 @@ export function CartProvider({ children }) {
           setDoc(doc(db, "carts", email), { items: newCart }, { merge: true });
         return newCart;
       });
-      toast.success("Producto eliminado");
+      toast.success("Eliminado");
     },
     [user?.email],
   );
@@ -163,12 +174,26 @@ export function CartProvider({ children }) {
   const clearCart = useCallback(async () => {
     const email = user?.email;
     setCart([]);
-    if (email) setDoc(doc(db, "carts", email), { items: [] });
+    if (email)
+      await setDoc(doc(db, "carts", email), { items: [] }, { merge: true });
   }, [user?.email]);
+
+  const logout = useCallback(() => {
+    sessionStorage.removeItem("shopUser");
+    localStorage.removeItem("shopUser");
+    setCart([]); // Limpiar carrito visualmente
+    setUser(null);
+    window.dispatchEvent(new Event("auth-change")); // Avisar a toda la app
+    toast.info("Sesión cerrada");
+  }, []);
 
   const cartCount = useMemo(
     () => cart.reduce((acc, i) => acc + i.quantity, 0),
     [cart],
+  );
+  const isSyncing = useMemo(
+    () => user?.email && user.balance === undefined,
+    [user],
   );
 
   const value = useMemo(
@@ -178,10 +203,20 @@ export function CartProvider({ children }) {
       addToCart,
       removeFromCart,
       clearCart,
+      logout, // Exportamos logout
       cartCount,
       isSyncing,
     }),
-    [user, cart, addToCart, removeFromCart, clearCart, cartCount, isSyncing],
+    [
+      user,
+      cart,
+      addToCart,
+      removeFromCart,
+      clearCart,
+      logout,
+      cartCount,
+      isSyncing,
+    ],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
@@ -189,6 +224,6 @@ export function CartProvider({ children }) {
 
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (!context) throw new Error("useCart context error");
+  if (!context) throw new Error("useCart error");
   return context;
 };

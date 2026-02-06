@@ -53,10 +53,13 @@ export default function Clients() {
     };
   }, []);
 
+  // Sync selectedClient with realtime data
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const selectedClient = clients.find((c) => c.id === selectedClientId) || null;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState("deposit"); // "deposit" | "withdrawal"
 
   const initialForm = {
     name: "",
@@ -128,7 +131,7 @@ export default function Clients() {
     if (window.confirm("¿Eliminar cliente?")) {
       try {
         await deleteDoc(doc(db, "clients", id));
-        setSelectedClient(null);
+        if (selectedClientId === id) setSelectedClientId(null);
         toast.info("Cliente eliminado");
       } catch {
         toast.error("Error al eliminar");
@@ -158,21 +161,35 @@ export default function Clients() {
   const handleRecharge = async () => {
     const cleanAmount = parseInt(rechargeAmount.replace(/\D/g, ""), 10);
     if (!cleanAmount || cleanAmount <= 0) return toast.error("Monto inválido");
+    if (!selectedClient) return;
+    
     try {
-      const newBalance = (selectedClient.balance || 0) + cleanAmount;
+      let newBalance = selectedClient.balance || 0;
+      
+      if (transactionType === "withdrawal") {
+        if (newBalance < cleanAmount) {
+          return toast.error("Saldo insuficiente para realizar el descuento");
+        }
+        newBalance -= cleanAmount;
+      } else {
+        newBalance += cleanAmount;
+      }
+
       await updateDoc(doc(db, "clients", selectedClient.id), {
         balance: newBalance,
         lastRecharge: {
+          type: transactionType,
           amount: cleanAmount,
           date: new Date().toISOString(),
           adminId: "admin",
         },
       });
-      toast.success(`Recarga exitosa`);
+      
+      toast.success(transactionType === "deposit" ? "Recarga exitosa" : "Descuento exitoso");
       setIsRechargeOpen(false);
       setRechargeAmount("");
     } catch {
-      toast.error("Error en la recarga");
+      toast.error("Error en la transacción");
     }
   };
 
@@ -235,8 +252,8 @@ export default function Clients() {
               return (
                 <div
                   key={client.id}
-                  onClick={() => setSelectedClient(client)}
-                  className={`p-4 border-b cursor-pointer hover:bg-slate-50 ${selectedClient?.id === client.id ? "bg-blue-50 border-l-4 border-l-blue-600" : ""}`}
+                  onClick={() => setSelectedClientId(client.id)}
+                  className={`p-4 border-b cursor-pointer hover:bg-slate-50 ${selectedClientId === client.id ? "bg-blue-50 border-l-4 border-l-blue-600" : ""}`}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
@@ -344,13 +361,26 @@ export default function Clients() {
                         {" "}
                         ${(selectedClient.balance || 0).toLocaleString()}{" "}
                       </span>
-                      <button
-                        onClick={() => setIsRechargeOpen(true)}
-                        className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-green-600/20"
-                      >
-                        {" "}
-                        <DollarSign size={16} /> Recargar{" "}
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            setTransactionType("deposit");
+                            setIsRechargeOpen(true);
+                          }}
+                          className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:bg-green-700 transition"
+                        >
+                          Recargar (+)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setTransactionType("withdrawal");
+                            setIsRechargeOpen(true);
+                          }}
+                          className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:bg-red-600 transition"
+                        >
+                          Descontar (-)
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="p-5 bg-slate-50 rounded-2xl border">
@@ -475,6 +505,25 @@ export default function Clients() {
                   })
                 }
               />
+              <input
+                type="email"
+                placeholder="Correo Electrónico"
+                required
+                className="w-full p-3 border rounded-xl outline-none focus:border-blue-500"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Dirección de Envío"
+                className="w-full p-3 border rounded-xl outline-none focus:border-blue-500"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+              />
               <button
                 type="submit"
                 className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition"
@@ -494,7 +543,8 @@ export default function Clients() {
               {" "}
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 {" "}
-                <DollarSign className="text-green-600" /> Recargar Saldo{" "}
+                <DollarSign className={transactionType === "deposit" ? "text-green-600" : "text-red-500"} /> 
+                {transactionType === "deposit" ? "Recargar Saldo" : "Descontar Saldo"}
               </h2>{" "}
               <button onClick={() => setIsRechargeOpen(false)}>
                 {" "}
@@ -505,7 +555,7 @@ export default function Clients() {
               <input
                 type="text"
                 placeholder="$ 0"
-                className="w-full p-4 bg-slate-50 border rounded-xl font-bold text-lg focus:border-green-500 outline-none"
+                className={`w-full p-4 bg-slate-50 border rounded-xl font-bold text-lg outline-none transition-colors ${transactionType === "deposit" ? "focus:border-green-500 text-green-700" : "focus:border-red-500 text-red-700"}`}
                 value={rechargeAmount}
                 onChange={handleRechargeChange}
               />
@@ -525,10 +575,10 @@ export default function Clients() {
               <button
                 onClick={handleRecharge}
                 disabled={!rechargeAmount}
-                className="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 disabled:opacity-50"
+                className={`w-full text-white font-bold py-3.5 rounded-xl transition hover:opacity-90 disabled:opacity-50 ${transactionType === "deposit" ? "bg-green-600" : "bg-red-500"}`}
               >
                 {" "}
-                Confirmar Recarga{" "}
+                Confirmar {transactionType === "deposit" ? "Recarga" : "Descuento"}{" "}
               </button>
             </div>
           </div>

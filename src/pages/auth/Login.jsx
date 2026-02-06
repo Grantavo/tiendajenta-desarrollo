@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, Mail, ChevronRight, AlertCircle } from "lucide-react";
-
-// FIREBASE
 import { db } from "../../firebase/config";
 import { collection, query, where, getDocs } from "firebase/firestore";
-
-// 1. IMPORTAR SONNER PARA UNA MEJOR EXPERIENCIA
 import { toast } from "sonner";
 
 export default function Login() {
@@ -22,6 +18,7 @@ export default function Login() {
   useEffect(() => {
     const session = sessionStorage.getItem("shopUser");
     if (session) {
+      // Ojo: Si es cliente, quizás deba ir a "/" en vez de "/admin"
       navigate("/admin", { replace: true });
     }
   }, [navigate]);
@@ -31,11 +28,10 @@ export default function Login() {
     setError("");
     setLoading(true);
 
-    // NORMALIZACIÓN: Forzamos minúsculas para que coincida con el ID de 'clients'
     const cleanEmail = formData.email.trim().toLowerCase();
 
     try {
-      // 1. Consultar Usuario en la colección 'users'
+      // 1. Consultar Usuario (Nota: Deberías usar indices en Firestore si esto crece)
       const q = query(
         collection(db, "users"),
         where("email", "==", cleanEmail),
@@ -43,7 +39,7 @@ export default function Login() {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setError("Credenciales inválidas. Verifica tu correo.");
+        setError("Credenciales inválidas.");
         setLoading(false);
         return;
       }
@@ -51,42 +47,41 @@ export default function Login() {
       const docSnap = querySnapshot.docs[0];
       const userData = { id: docSnap.id, ...docSnap.data() };
 
-      // 2. Validar Contraseña
+      // 2. Validar Contraseña (SIMPLE - En producción usar Firebase Auth real)
       if (userData.password !== formData.password) {
         setError("Contraseña incorrecta.");
         setLoading(false);
         return;
       }
 
-      // --- PASO CRÍTICO PARA PERMISOS ---
+      // 3. Roles
       const rolesSnap = await getDocs(collection(db, "roles"));
       const rolesData = rolesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       localStorage.setItem("shopRoles", JSON.stringify(rolesData));
 
-      // 4. Sanitizar y Guardar Sesión
-      // Aseguramos que el email guardado en la sesión sea el normalizado
-      const safeUser = {
-        ...userData,
-        email: cleanEmail,
-      };
+      // 4. Guardar Sesión
+      const safeUser = { ...userData, email: cleanEmail };
       delete safeUser.password;
 
       sessionStorage.setItem("shopUser", JSON.stringify(safeUser));
-      // También lo guardamos en localStorage para persistencia del carrito si es necesario
       localStorage.setItem("shopUser", JSON.stringify(safeUser));
 
-      toast.success(`¡Bienvenido de nuevo, ${safeUser.name}!`);
+      // --- CAMBIO CLAVE: NOTIFICAR AL CARTCONTEXT ---
+      window.dispatchEvent(new Event("auth-change"));
+      // ---------------------------------------------
 
-      // 5. Redirigir
+      toast.success(`¡Bienvenido, ${safeUser.name}!`);
+
       navigate("/admin", { replace: true });
     } catch (err) {
       console.error("Error login:", err);
-      setError("Error de conexión. Intente nuevamente.");
+      setError("Error de conexión.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ... (El resto del renderizado UI se mantiene igual)
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl border border-slate-100">
@@ -94,11 +89,11 @@ export default function Login() {
           <h1 className="text-3xl font-black text-slate-800 mb-2">
             Bienvenido
           </h1>
-          <p className="text-slate-400">Panel Administrativo</p>
+          <p className="text-slate-400">Iniciar Sesión</p>
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-50 text-red-500 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+          <div className="mb-6 bg-red-50 text-red-500 p-4 rounded-xl flex items-center gap-3 text-sm font-medium">
             <AlertCircle size={18} />
             {error}
           </div>
@@ -106,10 +101,7 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <label
-              htmlFor="login-email"
-              className="text-xs font-bold text-slate-500 uppercase ml-1"
-            >
+            <label className="text-xs font-bold text-slate-500 uppercase ml-1">
               Correo Electrónico
             </label>
             <div className="relative">
@@ -118,12 +110,10 @@ export default function Login() {
                 size={20}
               />
               <input
-                id="login-email"
-                name="email"
                 type="email"
                 required
                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-700"
-                placeholder="admin@ejemplo.com"
+                placeholder="usuario@ejemplo.com"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -133,10 +123,7 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="login-password"
-              className="text-xs font-bold text-slate-500 uppercase ml-1"
-            >
+            <label className="text-xs font-bold text-slate-500 uppercase ml-1">
               Contraseña
             </label>
             <div className="relative">
@@ -145,8 +132,6 @@ export default function Login() {
                 size={20}
               />
               <input
-                id="login-password"
-                name="password"
                 type="password"
                 required
                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-700"

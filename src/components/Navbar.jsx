@@ -18,7 +18,13 @@ import { collection, getDocs } from "firebase/firestore";
 // IMPORTAR EL MODAL DE LOGIN
 import AuthModal from "./AuthModal";
 
-export default function Navbar({ cartCount, onOpenCart }) {
+// IMPORTAR EL CONTEXTO DEL CARRITO
+import { useCart } from "../context/CartContext";
+
+export default function Navbar({ onOpenCart }) {
+  // USAR CONTEXTO
+  const { user, cartCount, logout } = useCart();
+  const userSession = user; // Alias para compatibilidad con código existente
   const navigate = useNavigate();
 
   // --- ESTADOS ---
@@ -35,28 +41,7 @@ export default function Navbar({ cartCount, onOpenCart }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
-  // [MEJORA] Lectura inmediata de sesión para evitar parpadeos
-  const [userSession, setUserSession] = useState(() => {
-    try {
-      return JSON.parse(sessionStorage.getItem("shopUser"));
-    } catch {
-      return null;
-    }
-  });
 
-  // EFECTO: Actualizar si la sesión cambia (ej: cerrar sesión en otra pestaña)
-  useEffect(() => {
-    const checkSession = () => {
-      try {
-        const stored = JSON.parse(sessionStorage.getItem("shopUser"));
-        setUserSession(stored);
-      } catch {
-        setUserSession(null);
-      }
-    };
-
-    checkSession();
-  }, [isAuthOpen]);
 
   // EFECTO: Cerrar menú al hacer click fuera
   useEffect(() => {
@@ -147,16 +132,15 @@ export default function Navbar({ cartCount, onOpenCart }) {
 
   // OBTENER SALDO DEL USUARIO
   const getUserBalance = () => {
-    return userSession?.walletBalance || 0;
+    return userSession?.balance || 0;
   };
 
   // CERRAR SESIÓN
   const handleLogout = () => {
-    sessionStorage.removeItem("shopUser");
-    setUserSession(null);
+    logout();
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
-    window.location.reload();
+    navigate("/");
   };
 
   return (

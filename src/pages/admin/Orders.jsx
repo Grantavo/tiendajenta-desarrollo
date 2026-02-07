@@ -697,8 +697,9 @@ export default function Orders() {
       {/* MODAL POS Y CONFIGURACIÓN */}
       {showPosModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl flex overflow-hidden shadow-2xl animate-in zoom-in duration-200">
-            <div className="w-2/3 bg-slate-50 p-6 flex flex-col border-r border-slate-200">
+          <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl flex flex-col md:flex-row overflow-hidden shadow-2xl animate-in zoom-in duration-200">
+            {/* IZQUIERDA: Buscador y Productos */}
+            <div className="w-full md:w-2/3 bg-slate-50 p-6 flex flex-col border-b md:border-b-0 md:border-r border-slate-200 h-1/2 md:h-full">
               <div className="relative mb-6">
                 <Search
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -712,7 +713,7 @@ export default function Orders() {
                   onChange={(e) => setPosSearch(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto pr-2 custom-scrollbar flex-1 content-start">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 custom-scrollbar flex-1 content-start">
                 {products
                   .filter((p) =>
                     p.title.toLowerCase().includes(posSearch.toLowerCase())
@@ -743,7 +744,9 @@ export default function Orders() {
                   ))}
               </div>
             </div>
-            <div className="w-1/3 bg-white p-6 flex flex-col">
+
+            {/* DERECHA: Carrito y Datos */}
+            <div className="w-full md:w-1/3 bg-white p-6 flex flex-col h-1/2 md:h-full">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">
                   {editingId ? `Editar #${editingId}` : "Nuevo Pedido"}

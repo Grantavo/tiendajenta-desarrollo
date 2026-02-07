@@ -306,6 +306,8 @@ export default function ShopSettings() {
             </div>
           </div>
 
+
+
           {/* Email y Eslogan */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">

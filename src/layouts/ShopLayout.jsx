@@ -15,6 +15,9 @@ import {
   doc,
   runTransaction,
   serverTimestamp,
+  query,
+  where,
+  onSnapshot,
 } from "firebase/firestore";
 import { toast } from "sonner";
 
@@ -29,6 +32,8 @@ import {
   Plus,
   Minus,
   Wallet,
+  Smartphone,
+  Truck,
 } from "lucide-react";
 
 export default function ShopLayout() {
@@ -48,21 +53,49 @@ export default function ShopLayout() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // --- EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO) ---
+  // --- EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO Y BANNERS) ---
+  const [topBar, setTopBar] = useState(null);
+
   useEffect(() => {
     const syncSettings = async () => {
       try {
+        // 1. Settings (Logo, Nombre, Teléfono)
         const q = await getDocs(collection(db, "settings"));
         if (!q.empty) {
           const settingsData = q.docs[0].data();
           localStorage.setItem("shopSettings", JSON.stringify(settingsData));
           window.dispatchEvent(new Event("storage"));
         }
+
+        // 2. Design (Top Bar)
+        const designDoc = await getDoc(doc(db, "banners", "design"));
+        if (designDoc.exists()) {
+           setTopBar(designDoc.data().topBar || null);
+        }
+
       } catch (error) {
         console.error("Error sincronizando settings:", error);
       }
     };
     syncSettings();
+
+    // 3. Shipping (Real-time Listener)
+    const unsubShipping = onSnapshot(
+      doc(db, "shipping_config", "standard_rate"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const cost = docSnap.data().cost;
+          if (cost !== undefined) {
+             localStorage.setItem("shopShippingCost", cost);
+          }
+        } else {
+             localStorage.setItem("shopShippingCost", "0");
+        }
+        window.dispatchEvent(new Event("storage"));
+      }
+    );
+
+    return () => unsubShipping();
   }, []);
 
   // Cargar métodos de pago
@@ -103,17 +136,52 @@ export default function ShopLayout() {
     }, 0);
   };
 
-  const handleApplyCoupon = () => {
-    const allCoupons = JSON.parse(localStorage.getItem("shopCoupons") || "[]");
-    const found = allCoupons.find(
-      (c) => c.code === couponCode.toUpperCase() && c.active,
-    );
-    if (found) {
-      setAppliedDiscount({ code: found.code, percent: found.discount });
-      toast.success(`Cupón aplicado: -${found.discount}%`);
-    } else {
-      setAppliedDiscount(null);
-      toast.error("Cupón no válido.");
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+
+    try {
+      // 1. Buscar el cupón en Firebase (case insensitive en teoría, pero Firestore es sensible, así que guardamos/buscamos mayúsculas)
+      const q = query(
+        collection(db, "coupons"),
+        where("code", "==", couponCode.toUpperCase()),
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        toast.error("El código no existe.");
+        setAppliedDiscount(null);
+        return;
+      }
+
+      const coupon = snap.docs[0].data();
+
+      // 2. Validar estado ACTIVO
+      if (!coupon.active) {
+        toast.error("El cupón está inactivo.");
+        setAppliedDiscount(null);
+        return;
+      }
+
+      // 3. Validar FECHA DE VENCIMIENTO (si existe)
+      if (coupon.expiryDate) {
+        const now = new Date();
+        const expiry = new Date(coupon.expiryDate);
+        // Ajustamos al final del día para ser amigables
+        expiry.setHours(23, 59, 59, 999);
+
+        if (now > expiry) {
+          toast.error("El cupón ha vencido.");
+          setAppliedDiscount(null);
+          return;
+        }
+      }
+
+      // 4. Aplicar descuento
+      setAppliedDiscount({ code: coupon.code, percent: coupon.discount });
+      toast.success(`¡Descuento de ${coupon.discount}% aplicado!`);
+    } catch (error) {
+      console.error("Error validando cupón:", error);
+      toast.error("Error al validar el cupón.");
     }
   };
 
@@ -125,11 +193,33 @@ export default function ShopLayout() {
   const discountAmount = appliedDiscount
     ? (subtotal * appliedDiscount.percent) / 100
     : 0;
-  const total = subtotal - discountAmount;
+
+  // OBTENER COSTO DE ENVÍO (Desde localStorage/shipping_config + Lógica Ciudad)
+  const [shippingCost, setShippingCost] = useState(0);
+
+  useEffect(() => {
+    const updateShipping = () => {
+        const standardRate = Number(localStorage.getItem("shopShippingCost")) || 0;
+        
+        // Lógica condicional: Si es Pasto -> 0
+        if (user?.city && user.city.toLowerCase().includes("pasto")) {
+            setShippingCost(0);
+        } else {
+            setShippingCost(standardRate);
+        }
+    };
+    
+    updateShipping();
+    window.addEventListener("storage", updateShipping);
+    return () => window.removeEventListener("storage", updateShipping);
+  }, [user]); // Re-calcular si cambia el usuario (o su ciudad)
+
+  const total = subtotal - discountAmount + shippingCost;
 
   const handleCheckout = async () => {
-    if (paymentMethods.length > 0 && !selectedPayment) {
-      alert("Por favor selecciona un método de pago para continuar.");
+    // 1. VALIDACIÓN DE MÉTODO DE PAGO
+    if (!selectedPayment) {
+      toast.error("Selecciona un método de pago para continuar.");
       return;
     }
 
@@ -192,9 +282,15 @@ export default function ShopLayout() {
       message += `\n🎁 Cupón (${appliedDiscount.code}): -${appliedDiscount.percent}%`;
       message += `\n✅ Descuento: -$${discountAmount.toLocaleString()}`;
     }
+    if (shippingCost > 0) {
+      message += `\n🚚 Envío: $${shippingCost.toLocaleString()}`;
+    }
     message += `\n\n*TOTAL A PAGAR: $${total.toLocaleString()}*`;
-    if (selectedPayment)
-      message += `\n\n💳 *Método de Pago:* ${selectedPayment.type}`;
+    
+    // MÉTODO DE PAGO
+    if (selectedPayment) {
+        message += `\n\n💳 *Método de Pago:* ${selectedPayment.type}`;
+    }
 
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
@@ -204,6 +300,19 @@ export default function ShopLayout() {
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col relative">
+      {/* TOP BAR GLOBAL */}
+      {topBar && topBar.isActive !== false && (
+        <div
+          className="w-full py-2 px-4 text-center text-xs md:text-sm font-bold relative z-50 transition-colors"
+          style={{
+            backgroundColor: topBar.bgColor || "#1e293b",
+            color: topBar.textColor || "#fff",
+          }}
+        >
+          {topBar.text}
+        </div>
+      )}
+
       <Navbar cartCount={cartCount} onOpenCart={() => setIsCartOpen(true)} />
       <main className="flex-grow w-full">
         <Outlet context={{ addToCart }} />
@@ -308,59 +417,87 @@ export default function ShopLayout() {
                 </div>
               ))}
 
+
+
               <div className="mt-6 border-t border-slate-200 pt-6">
                 <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                  <CreditCard size={14} /> Selecciona Método de Pago
+                  <CreditCard size={14} /> Método de Pago (Obligatorio)
                 </h3>
                 <div className="space-y-3">
+                  
+                  {/* OPCIÓN 1: BILLETERA (Solo si tiene saldo) */}
+                  {(() => {
+                    // Safe Balance Parsing
+                    // Convert "20.000" -> 20000, "20,000" -> 20000
+                    const rawBalance = user?.balance ? String(user.balance) : "0";
+                    const cleanBalance = rawBalance.replace(/[.,]/g, ""); 
+                    const balanceNum = Number(cleanBalance) || 0;
+                    
+                    if (!user || balanceNum <= 0) return null;
+
+                    return (
                   <div
-                    onClick={() => setSelectedPayment({ type: "Billetera" })}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.type === "Billetera" ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
+                    onClick={() => setSelectedPayment({ type: "Billetera", id: "wallet" })}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === "wallet" ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <Wallet size={16} className="text-blue-600" />
-                        <span className="font-bold text-sm text-slate-800">
-                          Mi Billetera
-                        </span>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-sm text-slate-800">
+                            Mi Billetera
+                            </span>
+                            <span className="text-xs font-bold text-slate-500">
+                                Saldo: ${balanceNum.toLocaleString()}
+                            </span>
+                        </div>
                       </div>
-                      <span className="text-xs font-bold text-green-600">
-                        ${(Number(user?.balance) || 0).toLocaleString()}
-                      </span>
+                      {selectedPayment?.id === "wallet" && (
+                          <Check size={16} className="text-blue-600" />
+                      )}
                     </div>
-                    {user && (Number(user.balance) || 0) < total && (
-                      <div className="mt-2 flex justify-between items-center">
-                        <p className="text-[10px] text-red-500 font-bold italic">
+                    {balanceNum < total && (
+                      <div className="mt-2 flex justify-between items-center bg-red-50 p-2 rounded-lg border border-red-100">
+                        <p className="text-[10px] text-red-500 font-bold italic flex-1">
                           Saldo insuficiente
                         </p>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setIsCartOpen(false);
-                            navigate("/mi-cuenta");
+                            setIsCartOpen(false); // Cerrar carrito
+                            navigate("/perfil", { state: { openRecharge: true } }); // Ir a perfil y abrir modal
                           }}
-                          className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-bold"
+                          className="ml-2 text-[10px] bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-green-700 transition"
                         >
                           Recargar
                         </button>
                       </div>
                     )}
                   </div>
+                  );
+                  })()}
 
-                  {paymentMethods.map((pm) => (
-                    <div
-                      key={pm.id}
-                      onClick={() => setSelectedPayment(pm)}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === pm.id ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-sm">{pm.type}</span>
-                        {selectedPayment?.id === pm.id && (
-                          <Check size={16} className="text-blue-600" />
-                        )}
+                  {/* OPCIÓN 2: COORDINAR POR WHATSAPP (Siempre disponible) */}
+                  <div
+                    onClick={() => setSelectedPayment({ type: "Coordinar por WhatsApp", id: "whatsapp" })}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === "whatsapp" ? "bg-green-50 border-green-500 ring-1" : "bg-white border-slate-200"}`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Smartphone size={16} className="text-green-600" />
+                        <span className="font-bold text-sm text-slate-800">
+                          Coordinar por WhatsApp
+                        </span>
                       </div>
+                      {selectedPayment?.id === "whatsapp" && (
+                        <Check size={16} className="text-green-600" />
+                      )}
                     </div>
-                  ))}
+                    <p className="text-[10px] text-slate-400 mt-1 ml-6">
+                      Nequi, Bancolombia, Efectivo...
+                    </p>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -404,7 +541,19 @@ export default function ShopLayout() {
                   <span>-${discountAmount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xl font-black text-slate-900 pt-2 border-t">
+              
+              {/* COSTO DE ENVÍO */}
+              <div className="flex justify-between items-center text-slate-600 py-1">
+                <div className="flex items-center gap-2">
+                  <Truck size={16} />
+                  <span>Envío</span>
+                </div>
+                <span className="font-bold text-slate-800 text-right">
+                  {shippingCost > 0 ? `$${shippingCost.toLocaleString()}` : "Gratis Para Pasto"}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-xl font-black text-slate-900 pt-2 border-t mt-2">
                 <span>Total</span>
                 <span>${total.toLocaleString()}</span>
               </div>

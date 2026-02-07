@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingBag, Ticket, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 import { db } from "../firebase/config";
 import {
@@ -22,7 +23,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   const [banners, setBanners] = useState([]);
-  const [topBar, setTopBar] = useState(null);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -30,12 +30,11 @@ export default function Home() {
       try {
         setLoading(true);
 
-        // A. Diseño (banners y topbar)
+        // A. Diseño (banners) - Ya no traemos topBar aquí
         const designDoc = await getDoc(doc(db, "banners", "design"));
         if (designDoc.exists()) {
           const data = designDoc.data();
           setBanners(data.banners || []);
-          setTopBar(data.topBar || null);
         } else {
           setBanners([
             {
@@ -113,18 +112,7 @@ export default function Home() {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-20 font-sans">
-      {/* TOP BAR */}
-      {topBar && topBar.isActive !== false && (
-        <div
-          className="w-full py-2 px-4 text-center text-xs md:text-sm font-bold"
-          style={{
-            backgroundColor: topBar.bgColor || "#1e293b",
-            color: topBar.textColor || "#fff",
-          }}
-        >
-          {topBar.text}
-        </div>
-      )}
+
 
       {/* HERO */}
       <div className="bg-slate-900 text-white relative overflow-hidden h-[400px] md:h-[500px] group">
@@ -140,16 +128,40 @@ export default function Home() {
           )}
         </div>
 
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-12">
-          <h1 className="text-4xl md:text-6xl font-black mb-4">
-            {activeBanner.title}
-          </h1>
-          <p className="text-slate-200 mb-8">{activeBanner.subtitle}</p>
-          <Link to={activeBanner.link || "/productos"}>
-            <button className="bg-red-600 text-white px-8 py-4 rounded-full font-bold hover:bg-red-700">
-              {activeBanner.btnText || "Ver Productos"}
-            </button>
-          </Link>
+        <div
+          className={`relative z-10 h-full flex flex-col justify-center px-12 transition-all duration-300 ${
+            activeBanner.textOverlay === "left"
+              ? "items-start text-left pl-20"
+              : activeBanner.textOverlay === "right"
+                ? "items-end text-right pr-20"
+                : "items-center text-center"
+          }`}
+        >
+          <div className="max-w-2xl">
+              <h1
+                className="text-4xl md:text-6xl font-black mb-4 drop-shadow-lg"
+                style={{ color: activeBanner.textColor || "#ffffff" }}
+              >
+                {activeBanner.title}
+              </h1>
+              <p
+                className="text-xl md:text-2xl mb-8 drop-shadow-md font-medium"
+                style={{ color: activeBanner.textColor || "#e2e8f0" }}
+              >
+                {activeBanner.subtitle}
+              </p>
+              <Link to={activeBanner.link || "/productos"}>
+                <button
+                  className="px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"
+                  style={{
+                    backgroundColor: activeBanner.btnColor || "#dc2626",
+                    color: activeBanner.btnTextColor || "#ffffff",
+                  }}
+                >
+                  {activeBanner.btnText || "Ver Productos"}
+                </button>
+              </Link>
+          </div>
         </div>
 
         {/* Botones de navegación del carrusel */}
@@ -173,8 +185,10 @@ export default function Home() {
         )}
       </div>
 
+
+
       {/* CATEGORÍAS POPULARES */}
-      <div className="container mx-auto px-4 -mt-10 relative z-10">
+      <div className="container mx-auto px-4 mt-8 relative z-10">
         <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-slate-800">

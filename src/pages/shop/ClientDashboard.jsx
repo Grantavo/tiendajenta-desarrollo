@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Package,
   Wallet,
@@ -29,6 +29,28 @@ export default function ClientDashboard() {
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.openRecharge) {
+      setIsRechargeOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+
+    if (location.state?.openProfile) {
+      setIsProfileOpen(true);
+      if (location.state?.isNewUser) {
+        setTimeout(() => {
+             toast("¡Bienvenido! 👋", {
+                description: "Por favor completa tu ciudad y dirección para tus envíos.",
+                duration: 6000,
+             });
+        }, 500);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
 

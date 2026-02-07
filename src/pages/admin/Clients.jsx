@@ -164,7 +164,10 @@ export default function Clients() {
     if (!selectedClient) return;
     
     try {
-      let newBalance = selectedClient.balance || 0;
+      // Sanitize current balance (handle strings like "20.000")
+      const currentBalanceRaw = String(selectedClient.balance || "0");
+      const currentBalanceClean = currentBalanceRaw.replace(/[.,]/g, "");
+      let newBalance = Number(currentBalanceClean) || 0;
       
       if (transactionType === "withdrawal") {
         if (newBalance < cleanAmount) {

@@ -94,8 +94,7 @@ export default function ProductCard({ product }) {
             disabled={isOutOfStock}
             className="w-full bg-[#F1F5F9] text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-[#0F172A] hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ShoppingCart size={18} />
-            {isOutOfStock ? "Sin Stock" : "Ver Detalle"}
+                        {isOutOfStock ? "Sin Stock" : "Ver Detalle"}
           </button>
         </Link>
       </div>

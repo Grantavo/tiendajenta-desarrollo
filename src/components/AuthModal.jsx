@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-// Eliminamos useNavigate porque usamos window.location.href
+import { useNavigate } from "react-router-dom";
 import { X, Mail, Lock, User, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 
 export default function AuthModal({ isOpen, onClose }) {
-  // Eliminamos const navigate = useNavigate();
+  const navigate = useNavigate();
   const [view, setView] = useState("login");
   const [loading, setLoading] = useState(false);
 
@@ -157,10 +157,10 @@ export default function AuthModal({ isOpen, onClose }) {
 
       // Redirigir según rol
       if (isStaff && sessionData.roleId) {
-        window.location.href = "/admin";
+        navigate("/admin");
       } else {
         // CLIENTES: Redirigir al INICIO para fomentar ventas
-        window.location.href = "/";
+        navigate("/");
       }
     } catch (error) {
       console.error(error);
@@ -223,9 +223,9 @@ export default function AuthModal({ isOpen, onClose }) {
 
       toast.success("Cuenta creada exitosamente.");
 
-      // [CAMBIO] Redirigir al perfil
+      // [CAMBIO] Redirigir al perfil con estado para abrir modal
       onClose();
-      window.location.href = "/perfil";
+      navigate("/perfil", { state: { openProfile: true, isNewUser: true } });
     } catch (error) {
       console.error(error);
       toast.error("Error al registrarse.");

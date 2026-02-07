@@ -38,6 +38,7 @@ const Clients = lazy(() => import("./pages/admin/Clients"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const Marketing = lazy(() => import("./pages/admin/Marketing"));
 const Payments = lazy(() => import("./pages/admin/Payments"));
+const Shipping = lazy(() => import("./pages/admin/Shipping"));
 const Migration = lazy(() => import("./pages/admin/Migration"));
 
 export default function App() {
@@ -106,10 +107,7 @@ export default function App() {
 
                 <Route path="migrar" element={<Migration />} />
 
-                <Route
-                  path="envios"
-                  element={<h1 className="p-8">Envíos (Próximamente)</h1>}
-                />
+                <Route path="envios" element={<Shipping />} />
               </Route>
             </Route>
           </Routes>

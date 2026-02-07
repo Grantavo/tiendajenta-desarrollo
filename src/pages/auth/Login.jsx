@@ -17,9 +17,14 @@ export default function Login() {
 
   useEffect(() => {
     const session = sessionStorage.getItem("shopUser");
-    if (session) {
+    const roles = localStorage.getItem("shopRoles");
+    
+    if (session && roles) {
       // Ojo: Si es cliente, quizás deba ir a "/" en vez de "/admin"
       navigate("/admin", { replace: true });
+    } else {
+      // Si falta algo, limpiamos por si acaso
+      sessionStorage.removeItem("shopUser");
     }
   }, [navigate]);
 

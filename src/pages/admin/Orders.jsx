@@ -514,12 +514,12 @@ export default function Orders() {
       </div>
 
       {/* TABS */}
-      <div className="flex overflow-x-auto gap-2 mb-6 pb-2 custom-scrollbar">
+      <div className="flex flex-col md:flex-row md:overflow-x-auto gap-2 mb-6 pb-2 custom-scrollbar">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
+            className={`w-full md:w-auto px-4 py-3 md:py-2 rounded-xl md:rounded-full text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === tab
                 ? "bg-slate-800 text-white shadow-md"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"

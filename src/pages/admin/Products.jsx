@@ -31,7 +31,7 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [categories] = useState(() => {
+  const [categories, setCategories] = useState(() => {
     try {
       const saved = localStorage.getItem("shopCategories");
       return saved ? JSON.parse(saved) : [];
@@ -39,6 +39,20 @@ export default function AdminProducts() {
       return [];
     }
   });
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const catsSnapshot = await getDocs(collection(db, "categories"));
+      const cats = catsSnapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+      setCategories(cats);
+      localStorage.setItem("shopCategories", JSON.stringify(cats));
+    } catch (e) {
+      console.error("Error fetching categories", e);
+    }
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -80,7 +94,8 @@ export default function AdminProducts() {
 
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -232,11 +247,17 @@ export default function AdminProducts() {
     }).format(price);
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
+  const [selectedCategory, setSelectedCategory] = useState("");
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.reference?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      p.reference?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategory ? p.categoryId == selectedCategory : true;
+
+    return matchesSearch && matchesCategory;
+  });
 
   const labelClass =
     "block text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2";
@@ -252,17 +273,17 @@ export default function AdminProducts() {
           </h1>
           <p className="text-sm text-slate-500">Administra tu inventario.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap md:flex-nowrap gap-2 w-full md:w-auto">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-md shadow-blue-600/20"
+            className="flex-1 md:flex-none flex justify-center items-center gap-2 bg-blue-600 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-bold hover:bg-blue-700 transition shadow-md shadow-blue-600/20"
           >
             <Plus size={18} /> Agregar
           </button>
-          <div className="relative">
+          <div className="relative flex-1 md:flex-none">
             <button
               onClick={() => excelInputRef.current.click()}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-md shadow-green-600/20"
+              className="w-full flex justify-center items-center gap-2 bg-green-600 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-bold hover:bg-green-700 transition shadow-md shadow-green-600/20"
             >
               <FileSpreadsheet size={18} /> Excel
             </button>
@@ -274,15 +295,15 @@ export default function AdminProducts() {
               className="hidden"
             />
           </div>
-          <button className="flex items-center gap-2 bg-slate-700 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-md shadow-slate-700/20">
+          <button className="flex-1 md:flex-none flex justify-center items-center gap-2 bg-slate-700 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-bold hover:bg-slate-800 transition shadow-md shadow-slate-700/20">
             <FileText size={18} /> PDF
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex gap-4">
-          <div className="relative flex-1 max-w-sm">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               size={18}
@@ -292,14 +313,29 @@ export default function AdminProducts() {
               name="search-products-table"
               type="text"
               placeholder="Buscar por título, ID..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 text-sm"
+              className="w-full pl-10 pr-4 py-3 md:py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <div className="w-full md:w-48">
+             <select
+              className="w-full h-full p-3 md:p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:border-blue-500"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="">Todas las Categorías</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>         
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* VISTA ESCRITORIO (TABLA) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500">
               <tr>
@@ -410,6 +446,83 @@ export default function AdminProducts() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* VISTA MÓVIL (CARDS) */}
+        <div className="md:hidden flex flex-col divide-y divide-slate-100">
+          {loading ? (
+             <div className="text-center py-12 text-slate-400 animate-pulse">
+                Cargando productos...
+             </div>
+          ) : filteredProducts.length === 0 ? (
+             <div className="text-center py-10 text-slate-400 italic">
+                No se encontraron productos.
+             </div>
+          ) : (
+            filteredProducts.map((product) => (
+              <div key={product.id} className="p-4 flex gap-4">
+                <div className="w-24 h-24 flex-shrink-0 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative">
+                   {product.images[0] ? (
+                      <img 
+                        src={product.images[0]} 
+                        className="w-full h-full object-cover" 
+                        alt="Prod" 
+                      />
+                   ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                         <ImageIcon size={24} />
+                      </div>
+                   )}
+                   {product.bestSeller === "si" && (
+                      <div className="absolute top-0 right-0 bg-yellow-400 text-white p-1 rounded-bl-lg shadow-sm">
+                         <span className="text-[10px] font-bold">★</span>
+                      </div>
+                   )}
+                </div>
+                
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                   <div>
+                      <h3 className="font-bold text-slate-800 text-sm leading-tight mb-1 truncate">
+                        {product.title}
+                      </h3>
+                      <div className="flex items-center gap-2 mb-2">
+                         <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                            {categories.find(c => c.id == product.categoryId)?.name || "Sin Cat."}
+                         </span>
+                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${product.stock > 0 ? "border-green-200 text-green-700 bg-green-50" : "border-red-200 text-red-700 bg-red-50"}`}>
+                            {product.stock} un.
+                         </span>
+                      </div>
+                      <div className="flex items-end gap-2">
+                         <span className="font-black text-slate-800">
+                            {formatPrice(product.price)}
+                         </span>
+                         {product.oldPrice > product.price && (
+                           <span className="text-xs text-slate-400 line-through mb-0.5">
+                             {formatPrice(product.oldPrice)}
+                           </span>
+                         )}
+                      </div>
+                   </div>
+
+                   <div className="flex justify-end gap-3 mt-2">
+                      <button 
+                        onClick={() => openEdit(product)}
+                        className="flex-1 bg-blue-50 text-blue-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                      >
+                         <Edit2 size={14} /> Editar
+                      </button>
+                      <button 
+                         onClick={() => handleDelete(product.id)}
+                         className="flex-1 bg-red-50 text-red-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                      >
+                         <Trash2 size={14} /> Borrar
+                      </button>
+                   </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

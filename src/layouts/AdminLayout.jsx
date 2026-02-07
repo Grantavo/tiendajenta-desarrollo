@@ -9,6 +9,7 @@ import {
   Moon,
   Sun,
   Camera,
+  Menu,
 } from "lucide-react";
 
 import { db } from "../firebase/config";
@@ -22,6 +23,7 @@ export default function AdminLayout() {
   );
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
@@ -140,12 +142,20 @@ export default function AdminLayout() {
         isDarkMode ? "dark bg-slate-900 text-white" : ""
       }`}
     >
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {isHeaderVisible && (
           <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-20 relative animate-in slide-in-from-top-2 duration-300">
-            <div className="relative w-80">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="lg:hidden text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={24} />
+              </button>
+
+              <div className="relative w-80 hidden sm:block">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <Search size={18} />
               </div>
@@ -197,6 +207,7 @@ export default function AdminLayout() {
                     )}
                 </div>
               )}
+              </div>
             </div>
 
             <div className="flex items-center gap-4">

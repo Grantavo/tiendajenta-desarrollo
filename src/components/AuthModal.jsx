@@ -138,6 +138,13 @@ export default function AuthModal({ isOpen, onClose }) {
       };
       delete sessionData.password;
 
+      // [NUEVO] Si es Staff, recuperar ROLES para evitar doble login
+      if (isStaff) {
+        const rolesSnap = await getDocs(collection(db, "roles"));
+        const rolesData = rolesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        localStorage.setItem("shopRoles", JSON.stringify(rolesData));
+      }
+
       sessionStorage.setItem("shopUser", JSON.stringify(sessionData));
 
       toast.success(`Bienvenido, ${sessionData.name}`);

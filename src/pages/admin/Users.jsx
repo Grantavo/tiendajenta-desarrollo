@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Edit2, Shield, Check, X, Key, Lock } from "lucide-react";
+import { Plus, Trash2, Edit2, Shield, Check, X, Key, Lock, Search } from "lucide-react";
 
 // 1. IMPORTAR SONNER
 import { toast } from "sonner";
@@ -141,6 +141,16 @@ export default function Users() {
 
   const [userForm, setUserForm] = useState(initialUserForm);
   const [roleForm, setRoleForm] = useState(initialRoleForm);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+
+  const filteredUsers = users.filter((u) => {
+     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           u.email.toLowerCase().includes(searchTerm.toLowerCase());
+     const matchesRole = roleFilter ? u.roleId === roleFilter : true;
+     return matchesSearch && matchesRole;
+  });
 
   // --- LÓGICA USUARIOS ---
   const handleSaveUser = async (e) => {
@@ -323,10 +333,10 @@ export default function Users() {
             Administra tu equipo de trabajo.
           </p>
         </div>
-        <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
           <button
             onClick={() => setActiveTab("users")}
-            className={`px-4 py-2 rounded-md text-sm font-bold transition ${
+            className={`w-full md:w-auto px-4 py-3 md:py-2 rounded-md text-sm font-bold transition ${
               activeTab === "users"
                 ? "bg-blue-100 text-blue-700"
                 : "text-slate-500 hover:text-slate-800"
@@ -336,7 +346,7 @@ export default function Users() {
           </button>
           <button
             onClick={() => setActiveTab("roles")}
-            className={`px-4 py-2 rounded-md text-sm font-bold transition ${
+            className={`w-full md:w-auto px-4 py-3 md:py-2 rounded-md text-sm font-bold transition ${
               activeTab === "roles"
                 ? "bg-blue-100 text-blue-700"
                 : "text-slate-500 hover:text-slate-800"
@@ -360,82 +370,188 @@ export default function Users() {
       {/* --- TABLA DE USUARIOS --- */}
       {activeTab === "users" && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500">
-              <tr>
-                <th className="px-6 py-4">Usuario</th>
-                <th className="px-6 py-4">Rol Asignado</th>
-                <th className="px-6 py-4">Fecha Creación</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {users.map((user) => {
-                const userRole = roles.find((r) => r.id === user.roleId);
-                const isSystemRole = userRole?.isSystem;
-                return (
-                  <tr key={user.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                            isSystemRole
-                              ? "bg-green-100 text-green-700"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
-                        >
-                          {user.name
-                            ? user.name.substring(0, 2).toUpperCase()
-                            : "??"}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-800">
-                            {user.name}
-                          </p>
-                          <p className="text-xs text-slate-400">{user.email}</p>
-                        </div>
+          {/* FILTROS Y BUSCADOR */}
+          <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row gap-4">
+             <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nombre o correo..." 
+                  className="w-full pl-10 pr-4 py-3 md:py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+             </div>
+             <div className="w-full md:w-48">
+                <select 
+                  className="w-full h-full p-3 md:p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:border-blue-500"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                   <option value="">Todos los Roles</option>
+                   {roles.map(r => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                   ))}
+                </select>
+             </div>
+          </div>
+
+          {/* VISTA ESCRITORIO (TABLA) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-500">
+                <tr>
+                  <th className="px-6 py-4">Usuario</th>
+                  <th className="px-6 py-4">Rol Asignado</th>
+                  <th className="px-6 py-4">Fecha Creación</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredUsers.length === 0 ? (
+                   <tr>
+                      <td colSpan="4" className="text-center py-8 text-slate-400 italic">
+                         No se encontraron usuarios.
+                      </td>
+                   </tr>
+                ) : (
+                  filteredUsers.map((user) => {
+                    const userRole = roles.find((r) => r.id === user.roleId);
+                    const isSystemRole = userRole?.isSystem;
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                                isSystemRole
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {user.name
+                                ? user.name.substring(0, 2).toUpperCase()
+                                : "??"}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800">
+                                {user.name}
+                              </p>
+                              <p className="text-xs text-slate-400">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-bold border ${
+                              isSystemRole
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}
+                          >
+                            {userRole?.name || "Rol desconocido"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">{user.createdAt || "N/A"}</td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button
+                            onClick={() => openEditUser(user)}
+                            className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          {!isSystemRole ? (
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              className="text-red-400 hover:bg-red-50 p-2 rounded-full transition"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              title="Protegido por Rol de Sistema"
+                              className="text-slate-300 cursor-not-allowed p-2"
+                            >
+                              <Lock size={18} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* VISTA MÓVIL (CARDS) */}
+          <div className="md:hidden flex flex-col divide-y divide-slate-100">
+             {filteredUsers.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 italic">
+                   No se encontraron usuarios.
+                </div>
+             ) : (
+                filteredUsers.map(user => {
+                   const userRole = roles.find((r) => r.id === user.roleId);
+                   const isSystemRole = userRole?.isSystem;
+                   
+                   return (
+                      <div key={user.id} className="p-4 flex items-start gap-3">
+                         <div
+                              className={`w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-lg ${
+                                isSystemRole
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {user.name
+                                ? user.name.substring(0, 2).toUpperCase()
+                                : "??"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                             <div className="flex justify-between items-start">
+                                <div>
+                                   <h3 className="font-bold text-slate-800 truncate">{user.name}</h3>
+                                   <p className="text-xs text-slate-500 truncate mb-1">{user.email}</p>
+                                </div>
+                                {isSystemRole && <Lock size={14} className="text-green-600 mt-1" />}
+                             </div>
+                             
+                             <div className="flex items-center gap-2 mb-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                    isSystemRole
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : "bg-blue-50 text-blue-700 border-blue-200"
+                                  }`}
+                                >
+                                  {userRole?.name || "Rol desconocido"}
+                                </span>
+                                <span className="text-[10px] text-slate-400">{user.createdAt || "N/A"}</span>
+                             </div>
+
+                             <div className="flex gap-2">
+                                <button 
+                                   onClick={() => openEditUser(user)}
+                                   className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                                >
+                                   <Edit2 size={14} /> Editar
+                                </button>
+                                {!isSystemRole && (
+                                   <button 
+                                      onClick={() => deleteUser(user.id)}
+                                      className="flex-1 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                                   >
+                                      <Trash2 size={14} /> Eliminar
+                                   </button>
+                                )}
+                             </div>
+                          </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-bold border ${
-                          isSystemRole
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-blue-50 text-blue-700 border-blue-200"
-                        }`}
-                      >
-                        {userRole?.name || "Rol desconocido"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">{user.createdAt || "N/A"}</td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button
-                        onClick={() => openEditUser(user)}
-                        className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      {!isSystemRole ? (
-                        <button
-                          onClick={() => deleteUser(user.id)}
-                          className="text-red-400 hover:bg-red-50 p-2 rounded-full transition"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      ) : (
-                        <button
-                          title="Protegido por Rol de Sistema"
-                          className="text-slate-300 cursor-not-allowed p-2"
-                        >
-                          <Lock size={18} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                   )
+                })
+             )}
+          </div>
         </div>
       )}
 

@@ -330,12 +330,12 @@ export default function Dashboard() {
                 ? "Rendimiento Anual"
                 : "Crecimiento Histórico"}
             </h3>
-            <div className="flex bg-slate-100 p-1 rounded-lg text-sm">
+            <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg text-sm w-full sm:w-auto">
               {VIEW_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   onClick={() => setViewMode(option.id)}
-                  className={`px-4 py-1 rounded-md transition-all capitalize ${
+                  className={`w-full sm:w-auto px-4 py-2 sm:py-1 rounded-md transition-all capitalize ${
                     viewMode === option.id
                       ? "bg-white shadow-sm text-slate-800 font-bold"
                       : "text-slate-500 hover:text-slate-700"

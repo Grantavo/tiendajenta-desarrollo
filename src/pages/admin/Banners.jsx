@@ -8,6 +8,9 @@ import {
   Cloud,
   Link as LinkIcon,
   ChevronDown,
+  ChevronUp,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -189,6 +192,16 @@ export default function Banners() {
     );
   };
 
+  const moveBanner = (index, direction) => {
+    const newBanners = [...banners];
+    const targetIndex = index + direction;
+    if (targetIndex >= 0 && targetIndex < newBanners.length) {
+      const [movedBanner] = newBanners.splice(index, 1);
+      newBanners.splice(targetIndex, 0, movedBanner);
+      setBanners(newBanners);
+    }
+  };
+
   if (loading)
     return (
       <div className="p-10 text-center text-slate-400">Cargando diseño...</div>
@@ -291,183 +304,261 @@ export default function Banners() {
         </div>
 
         {banners.map((banner, index) => (
-          <div
+          <BannerCard 
             key={banner.id}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 animate-in slide-in-from-bottom-2"
-          >
-            <div className="w-full md:w-1/3 aspect-video bg-slate-100 rounded-xl relative overflow-hidden group border-2 border-dashed border-slate-300 hover:border-blue-400 transition cursor-pointer">
-              {banner.image ? (
-                <img
-                  src={banner.image}
-                  alt="Banner"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-                  <ImageIcon size={32} className="mb-2" />
-                  <span className="text-xs font-bold">
-                    Click para subir (PC)
-                  </span>
-                </div>
-              )}
-              <input
-                type="file"
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                accept="image/*"
-                onChange={(e) => handleImageUpload(banner.id, e)}
-              />
+            banner={banner} 
+            index={index} 
+            total={banners.length}
+            onUpdate={updateBannerText}
+            onImage={handleImageUpload}
+            onDelete={deleteBanner}
+            onMove={moveBanner}
+            linkLogic={{ availableProducts, availableCategories, updateLinkLogic }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// COMPONENTE EXTRAÍDO PARA MEJORAR RENDIMIENTO Y ORGANIZACIÓN
+function BannerCard({ banner, index, total, onUpdate, onImage, onDelete, onMove, linkLogic }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { availableProducts, availableCategories, updateLinkLogic } = linkLogic;
+  
+  // Auto-expandir si es el último (nuevo) en desktop, o gestionar lógica custom
+  // Por defecto cerrado en móvil para ahorrar espacio
+  
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-2">
+      {/* HEADER DE LA TARJETA (Siempre visible, resumen) */}
+      <div className="p-4 flex items-center justify-between bg-slate-50 border-b border-slate-100 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+         <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${banner.image ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
+               {index + 1}
+            </div>
+            <div>
+               <h3 className="font-bold text-slate-800 text-sm">{banner.title || "Nuevo Banner"}</h3>
+               <p className="text-xs text-slate-500 truncate max-w-[150px] md:max-w-xs">{banner.subtitle || "Sin descripción"}</p>
+            </div>
+         </div>
+         <div className="flex items-center gap-2">
+            <div className="flex bg-white rounded-lg border border-slate-200 overflow-hidden mr-2">
+               <button 
+                  disabled={index === 0}
+                  onClick={(e) => { e.stopPropagation(); onMove(index, -1); }}
+                  className="p-1.5 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 border-r border-slate-200"
+               >
+                  <ArrowUp size={14} />
+               </button>
+               <button 
+                  disabled={index === total - 1}
+                  onClick={(e) => { e.stopPropagation(); onMove(index, 1); }}
+                  className="p-1.5 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600"
+               >
+                  <ArrowDown size={14} />
+               </button>
+            </div>
+            <button 
+               onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+               className="p-1 text-slate-400 hover:text-blue-600 transition"
+            >
+               {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
+         </div>
+      </div>
+
+      {/* CONTENIDO EXPANDIBLE */}
+      {isExpanded && (
+        <div className="p-6 flex flex-col md:flex-row gap-6">
+          {/* PREVIEW VISUAL (WYSIWYG) */}
+          <div className="w-full md:w-1/3 space-y-2">
+             <label className="text-xs font-bold text-slate-400 uppercase text-center block mb-1">Vista Previa</label>
+             <div 
+               className="aspect-[4/3] md:aspect-video bg-slate-900 rounded-xl relative overflow-hidden group border-2 border-dashed border-slate-300 hover:border-blue-400 transition cursor-pointer shadow-inner"
+             >
+               {banner.image ? (
+                 <>
+                   <img
+                     src={banner.image}
+                     alt="Banner"
+                     className="w-full h-full object-cover opacity-80" // Opacidad para simular el overlay real
+                   />
+                   {/* TEXT OVERLAY PREVIEW */}
+                   <div className="absolute inset-0 flex flex-col justify-center items-start p-6 text-white pointer-events-none">
+                      <span className="font-bold text-xl md:text-2xl leading-tight drop-shadow-md mb-1">{banner.title}</span>
+                      <span className="text-xs md:text-sm drop-shadow-md opacity-90 mb-3">{banner.subtitle}</span>
+                      <span className="bg-white text-slate-900 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">
+                         {banner.btnText}
+                      </span>
+                   </div>
+                 </>
+               ) : (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+                   <ImageIcon size={32} className="mb-2 opacity-50" />
+                   <span className="text-xs font-bold">
+                     Click para subir imagen
+                   </span>
+                 </div>
+               )}
+               <input
+                 type="file"
+                 className="absolute inset-0 opacity-0 cursor-pointer"
+                 accept="image/*"
+                 onChange={(e) => onImage(banner.id, e)}
+               />
+             </div>
+             <p className="text-[10px] text-center text-slate-400">
+                La visualización final puede variar según el dispositivo del cliente.
+             </p>
+          </div>
+
+          <div className="flex-1 space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={() => onDelete(banner.id)}
+                className="text-red-400 hover:text-red-600 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded hover:bg-red-50 transition"
+              >
+                <Trash2 size={14} /> Eliminar Slide
+              </button>
             </div>
 
-            <div className="flex-1 space-y-4">
-              <div className="flex justify-between">
-                <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded text-slate-500">
-                  Slide #{index + 1}
-                </span>
-                <button
-                  onClick={() => deleteBanner(banner.id)}
-                  className="text-red-400 hover:text-red-600 p-1"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+            <div className="grid grid-cols-1 gap-3">
+              <input
+                type="text"
+                placeholder="Título Grande"
+                className="w-full p-2 border-b font-bold text-lg outline-none focus:border-blue-500"
+                value={banner.title}
+                onChange={(e) =>
+                  onUpdate(banner.id, "title", e.target.value)
+                }
+              />
+              <input
+                type="text"
+                placeholder="Subtítulo"
+                className="w-full p-2 border-b text-slate-600 outline-none focus:border-blue-500"
+                value={banner.subtitle}
+                onChange={(e) =>
+                  onUpdate(banner.id, "subtitle", e.target.value)
+                }
+              />
 
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Título Grande"
-                  className="w-full p-2 border-b font-bold text-lg outline-none focus:border-blue-500"
-                  value={banner.title}
+                  placeholder="Texto Botón"
+                  className="w-full p-2 border-b text-blue-600 font-bold text-sm outline-none focus:border-blue-500"
+                  value={banner.btnText}
                   onChange={(e) =>
-                    updateBannerText(banner.id, "title", e.target.value)
-                  }
-                />
-                <input
-                  type="text"
-                  placeholder="Subtítulo"
-                  className="w-full p-2 border-b text-slate-600 outline-none focus:border-blue-500"
-                  value={banner.subtitle}
-                  onChange={(e) =>
-                    updateBannerText(banner.id, "subtitle", e.target.value)
+                    onUpdate(banner.id, "btnText", e.target.value)
                   }
                 />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Texto Botón"
-                    className="w-full p-2 border-b text-blue-600 font-bold text-sm outline-none focus:border-blue-500"
-                    value={banner.btnText}
-                    onChange={(e) =>
-                      updateBannerText(banner.id, "btnText", e.target.value)
-                    }
-                  />
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <select
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                      value={banner.linkType || "product"}
+                      onChange={(e) =>
+                        updateLinkLogic(banner.id, e.target.value, "", "")
+                      }
+                    >
+                      <option value="product">Producto Específico</option>
+                      <option value="category">Categoría Específica</option>
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
 
-                  <div className="flex flex-col gap-2">
-                    <div className="relative">
-                      <select
-                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                        value={banner.linkType || "product"}
-                        onChange={(e) =>
-                          updateLinkLogic(banner.id, e.target.value, "", "")
-                        }
-                      >
-                        <option value="product">Producto Específico</option>
-                        <option value="category">Categoría Específica</option>
-                      </select>
-                      <ChevronDown
-                        size={14}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                      />
-                    </div>
+                  {banner.linkType === "product" && (
+                    <select
+                      className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs text-slate-600 outline-none focus:border-blue-500"
+                      value={banner.targetId || ""}
+                      onChange={(e) =>
+                        updateLinkLogic(banner.id, "product", e.target.value)
+                      }
+                    >
+                      <option value="">Selecciona un producto...</option>
+                      {availableProducts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
 
-                    {banner.linkType === "product" && (
+                  {banner.linkType === "category" && (
+                    <div className="flex flex-col gap-2">
                       <select
                         className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs text-slate-600 outline-none focus:border-blue-500"
                         value={banner.targetId || ""}
                         onChange={(e) =>
-                          updateLinkLogic(banner.id, "product", e.target.value)
+                          updateLinkLogic(
+                            banner.id,
+                            "category",
+                            e.target.value,
+                            ""
+                          )
                         }
                       >
-                        <option value="">Selecciona un producto...</option>
-                        {availableProducts.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.title}
+                        <option value="">Selecciona una categoría...</option>
+                        {availableCategories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
                           </option>
                         ))}
                       </select>
-                    )}
 
-                    {banner.linkType === "category" && (
-                      <div className="flex flex-col gap-2">
-                        <select
-                          className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs text-slate-600 outline-none focus:border-blue-500"
-                          value={banner.targetId || ""}
-                          onChange={(e) =>
-                            updateLinkLogic(
-                              banner.id,
-                              "category",
-                              e.target.value,
-                              ""
-                            )
-                          }
-                        >
-                          <option value="">Selecciona una categoría...</option>
-                          {availableCategories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-
-                        {(() => {
-                          const selectedCat = availableCategories.find(
-                            (c) => String(c.id) === String(banner.targetId)
+                      {(() => {
+                        const selectedCat = availableCategories.find(
+                          (c) => String(c.id) === String(banner.targetId)
+                        );
+                        if (selectedCat?.subcategories?.length > 0) {
+                          return (
+                            <select
+                              className="w-full p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-slate-600 outline-none focus:border-blue-500"
+                              value={banner.subTargetId || ""}
+                              onChange={(e) =>
+                                updateLinkLogic(
+                                  banner.id,
+                                  "category",
+                                  banner.targetId,
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option value="">
+                                Todas las subcategorías
+                              </option>
+                              {selectedCat.subcategories.map((sub, idx) => {
+                                const subName =
+                                  typeof sub === "string" ? sub : sub.name;
+                                return (
+                                  <option key={idx} value={subName}>
+                                    {subName}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           );
-                          if (selectedCat?.subcategories?.length > 0) {
-                            return (
-                              <select
-                                className="w-full p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-slate-600 outline-none focus:border-blue-500"
-                                value={banner.subTargetId || ""}
-                                onChange={(e) =>
-                                  updateLinkLogic(
-                                    banner.id,
-                                    "category",
-                                    banner.targetId,
-                                    e.target.value
-                                  )
-                                }
-                              >
-                                <option value="">
-                                  Todas las subcategorías
-                                </option>
-                                {selectedCat.subcategories.map((sub, idx) => {
-                                  const subName =
-                                    typeof sub === "string" ? sub : sub.name;
-                                  return (
-                                    <option key={idx} value={subName}>
-                                      {subName}
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                            );
-                          }
-                        })()}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400 px-1">
-                      <LinkIcon size={10} />
-                      <span className="truncate max-w-[150px]">
-                        {banner.link || "Sin enlace"}
-                      </span>
+                        }
+                      })()}
                     </div>
+                  )}
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400 px-1">
+                    <LinkIcon size={10} />
+                    <span className="truncate max-w-[150px]">
+                      {banner.link || "Sin enlace"}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

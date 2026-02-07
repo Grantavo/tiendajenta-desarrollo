@@ -13,12 +13,13 @@ import {
   Truck,
   MessageSquare,
   Palette,
+  X,
 } from "lucide-react";
 
 // 1. IMPORTAR EL HOOK DE PERMISOS
 import { usePermissions } from "../../hooks/usePermissions";
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { hasPermission } = usePermissions();
 
@@ -142,9 +143,22 @@ export default function Sidebar() {
   }, [hasPermission]);
 
   return (
-    <aside className="w-72 h-screen flex flex-col transition-all duration-300 relative border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl">
+    <>
+      {/* MOBILE OVERLAY */}
+      <div 
+        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={onClose}
+      />
+
+      <aside 
+        className={`fixed lg:relative z-50 w-72 h-screen flex flex-col transition-transform duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
       {/* LOGO DINÁMICO */}
-      <div className="h-24 flex items-center px-8">
+      <div className="h-24 flex items-center justify-between px-8">
         {shopSettings.logo ? (
           <img
             src={shopSettings.logo}
@@ -157,6 +171,10 @@ export default function Sidebar() {
             <span className="text-red-600">.ADMIN</span>
           </span>
         )}
+        {/* CLOSE BUTTON MOBILE */}
+        <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-red-500">
+          <X size={24} />
+        </button>
       </div>
 
       {/* MENÚ FILTRADO */}
@@ -214,5 +232,6 @@ export default function Sidebar() {
         </Link>
       </div>
     </aside>
+    </>
   );
 }

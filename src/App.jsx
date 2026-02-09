@@ -24,6 +24,8 @@ const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
 const Home = lazy(() => import("./pages/Home"));
 const CategoryPage = lazy(() => import("./pages/shop/CategoryPage"));
 const ProductDetail = lazy(() => import("./pages/shop/ProductDetail"));
+const InvestmentDashboard = lazy(() => import("./pages/shop/InvestmentDashboard"));
+const AssetDetail = lazy(() => import("./pages/shop/AssetDetail"));
 const ShopProducts = lazy(() => import("./pages/shop/Products"));
 const ClientDashboard = lazy(() => import("./pages/shop/ClientDashboard"));
 
@@ -62,6 +64,8 @@ export default function App() {
               <Route path="producto/:id" element={<ProductDetail />} />
               <Route path="productos" element={<ShopProducts />} />
               <Route path="perfil" element={<ClientDashboard />} />
+              <Route path="inversiones" element={<InvestmentDashboard />} />
+              <Route path="inversiones/:symbol" element={<AssetDetail />} />
             </Route>
 
             {/* --- ZONA BLINDADA (ADMIN) --- */}

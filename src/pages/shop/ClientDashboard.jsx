@@ -150,7 +150,7 @@ export default function ClientDashboard() {
       icon: <TrendingUp size={32} />,
       color: "text-indigo-600",
       bg: "bg-indigo-50",
-      action: () => toast.success("Panel de Inversiones: Muy pronto 🚀"),
+      action: () => navigate("/inversiones"),
     },
     {
       title: "Seguridad",

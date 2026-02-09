@@ -15,6 +15,7 @@ import {
   DollarSign,
   Map,
   Building2,
+  TrendingUp,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ export default function Clients() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [transactionType, setTransactionType] = useState("deposit"); // "deposit" | "withdrawal"
+  const [walletType, setWalletType] = useState("main"); // "main" | "investment"
 
   const initialForm = {
     name: "",
@@ -165,7 +167,11 @@ export default function Clients() {
     
     try {
       // Sanitize current balance (handle strings like "20.000")
-      const currentBalanceRaw = String(selectedClient.balance || "0");
+      const currentBalanceRaw = String(
+          walletType === 'investment' 
+          ? (selectedClient.investmentBalance || "0") 
+          : (selectedClient.balance || "0")
+      );
       const currentBalanceClean = currentBalanceRaw.replace(/[.,]/g, "");
       let newBalance = Number(currentBalanceClean) || 0;
       
@@ -178,15 +184,26 @@ export default function Clients() {
         newBalance += cleanAmount;
       }
 
-      await updateDoc(doc(db, "clients", selectedClient.id), {
-        balance: newBalance,
-        lastRecharge: {
-          type: transactionType,
-          amount: cleanAmount,
-          date: new Date().toISOString(),
-          adminId: "admin",
-        },
-      });
+      const updateData = {};
+      if (walletType === 'investment') {
+          updateData.investmentBalance = newBalance;
+          updateData.lastInvestmentRecharge = {
+              type: transactionType,
+              amount: cleanAmount,
+              date: new Date().toISOString(),
+              adminId: "admin",
+          };
+      } else {
+          updateData.balance = newBalance;
+          updateData.lastRecharge = {
+              type: transactionType,
+              amount: cleanAmount,
+              date: new Date().toISOString(),
+              adminId: "admin",
+          };
+      }
+
+      await updateDoc(doc(db, "clients", selectedClient.id), updateData);
       
       toast.success(transactionType === "deposit" ? "Recarga exitosa" : "Descuento exitoso");
       setIsRechargeOpen(false);
@@ -368,6 +385,7 @@ export default function Clients() {
                         <button
                           onClick={() => {
                             setTransactionType("deposit");
+                            setWalletType("main");
                             setIsRechargeOpen(true);
                           }}
                           className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:bg-green-700 transition"
@@ -377,9 +395,45 @@ export default function Clients() {
                         <button
                           onClick={() => {
                             setTransactionType("withdrawal");
+                            setWalletType("main");
                             setIsRechargeOpen(true);
                           }}
                           className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:bg-red-600 transition"
+                        >
+                          Descontar (-)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {/* TARJETA DE SALDO DE INVERSIÓN */}
+                  <div className="p-5 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
+                    <p className="text-xs font-bold text-indigo-600 uppercase mb-2 flex items-center gap-1">
+                      {" "}
+                      <TrendingUp size={12} /> Saldo de Inversión{" "}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-3xl font-black text-indigo-700">
+                        {" "}
+                        ${(selectedClient.investmentBalance || 0).toLocaleString()}{" "}
+                      </span>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            setTransactionType("deposit");
+                            setWalletType("investment");
+                            setIsRechargeOpen(true);
+                          }}
+                          className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 transition"
+                        >
+                          Recargar (+)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setTransactionType("withdrawal");
+                            setWalletType("investment");
+                            setIsRechargeOpen(true);
+                          }}
+                          className="bg-purple-500 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:bg-purple-600 transition"
                         >
                           Descontar (-)
                         </button>
@@ -547,7 +601,7 @@ export default function Clients() {
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 {" "}
                 <DollarSign className={transactionType === "deposit" ? "text-green-600" : "text-red-500"} /> 
-                {transactionType === "deposit" ? "Recargar Saldo" : "Descontar Saldo"}
+                {transactionType === "deposit" ? "Recargar" : "Descontar"} {walletType === 'investment' ? "Inversión" : "Billetera"}
               </h2>{" "}
               <button onClick={() => setIsRechargeOpen(false)}>
                 {" "}

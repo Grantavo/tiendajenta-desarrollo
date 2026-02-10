@@ -28,6 +28,7 @@ const InvestmentDashboard = lazy(() => import("./pages/shop/InvestmentDashboard"
 const AssetDetail = lazy(() => import("./pages/shop/AssetDetail"));
 const ShopProducts = lazy(() => import("./pages/shop/Products"));
 const ClientDashboard = lazy(() => import("./pages/shop/ClientDashboard"));
+const ThankYou = lazy(() => import("./pages/shop/ThankYou"));
 
 // 3. Páginas del Admin (Dashboard, Gráficos, Excel - Todo esto pesa mucho)
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -40,6 +41,7 @@ const Clients = lazy(() => import("./pages/admin/Clients"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const Marketing = lazy(() => import("./pages/admin/Marketing"));
 const Payments = lazy(() => import("./pages/admin/Payments"));
+const BoldConfig = lazy(() => import("./pages/admin/BoldConfig"));
 const Shipping = lazy(() => import("./pages/admin/Shipping"));
 const Migration = lazy(() => import("./pages/admin/Migration"));
 
@@ -66,6 +68,7 @@ export default function App() {
               <Route path="perfil" element={<ClientDashboard />} />
               <Route path="inversiones" element={<InvestmentDashboard />} />
               <Route path="inversiones/:symbol" element={<AssetDetail />} />
+              <Route path="thank-you" element={<ThankYou />} />
             </Route>
 
             {/* --- ZONA BLINDADA (ADMIN) --- */}
@@ -106,6 +109,7 @@ export default function App() {
 
                 <Route element={<ProtectedRoute module="ajustes" />}>
                   <Route path="pagos" element={<Payments />} />
+                  <Route path="bold" element={<BoldConfig />} />
                   <Route path="ajustes" element={<ShopSettings />} />
                 </Route>
 

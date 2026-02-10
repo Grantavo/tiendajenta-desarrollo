@@ -18,6 +18,7 @@ import {
   query,
   where,
   onSnapshot,
+  getDoc,
 } from "firebase/firestore";
 import { toast } from "sonner";
 
@@ -231,9 +232,18 @@ export default function ShopLayout() {
       }
 
       try {
+        console.log("🔍 DEBUG - User object:", user);
+        console.log("🔍 DEBUG - User ID:", user.id);
+        console.log("🔍 DEBUG - User email:", user.email);
+        
         await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, "clients", user.email);
+          // Usar user.id en lugar de user.email para buscar el documento
+          const userRef = doc(db, "clients", user.id);
+          console.log("🔍 DEBUG - Looking for document:", `clients/${user.id}`);
+          
           const userSnap = await transaction.get(userRef);
+          console.log("🔍 DEBUG - Document exists:", userSnap.exists());
+          
           if (!userSnap.exists()) throw "Perfil de usuario no encontrado";
 
           const currentBalance = Number(userSnap.data().balance) || 0;
@@ -261,6 +271,46 @@ export default function ShopLayout() {
         toast.error(
           typeof error === "string" ? error : "Error al procesar el pago",
         );
+        return;
+      }
+    }
+
+    // PAGO CON BOLD
+    if (selectedPayment?.type === "Bold") {
+      try {
+        // Verificar si Bold está configurado
+        const boldConfigRef = doc(db, "settings", "bold");
+        const boldConfigSnap = await getDoc(boldConfigRef);
+        
+        if (!boldConfigSnap.exists() || !boldConfigSnap.data().enabled) {
+          toast.error("Bold no está configurado. Contacta al administrador.");
+          return;
+        }
+
+        const boldConfig = boldConfigSnap.data();
+        
+        // TODO: Implementar integración con API de Bold cuando recibas las llaves
+        // Por ahora, mostrar mensaje informativo
+        toast.info("Redirigiendo a Bold...", {
+          description: "La integración con Bold se completará cuando recibas las llaves API."
+        });
+        
+        // Placeholder para futura integración:
+        // 1. Crear orden en Bold
+        // 2. Obtener URL de pago
+        // 3. Redirigir al usuario
+        // 4. Webhook para confirmar pago
+        
+        console.log("Bold Config:", {
+          mode: boldConfig.mode,
+          enabled: boldConfig.enabled,
+          // No mostrar API keys en console por seguridad
+        });
+        
+        return;
+      } catch (error) {
+        console.error("Error con Bold:", error);
+        toast.error("Error al procesar pago con Bold");
         return;
       }
     }
@@ -495,6 +545,31 @@ export default function ShopLayout() {
                     </div>
                     <p className="text-[10px] text-slate-400 mt-1 ml-6">
                       Nequi, Bancolombia, Efectivo...
+                    </p>
+                  </div>
+
+                  {/* OPCIÓN 3: PAGAR CON BOLD (Pasarela de pago) */}
+                  <div
+                    onClick={() => setSelectedPayment({ type: "Bold", id: "bold" })}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedPayment?.id === "bold" 
+                        ? "bg-indigo-50 border-indigo-500 ring-1" 
+                        : "bg-white border-slate-200"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <CreditCard size={16} className="text-indigo-600" />
+                        <span className="font-bold text-sm text-slate-800">
+                          Pagar con Bold
+                        </span>
+                      </div>
+                      {selectedPayment?.id === "bold" && (
+                        <Check size={16} className="text-indigo-600" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1 ml-6">
+                      Tarjeta de crédito/débito, PSE
                     </p>
                   </div>
 

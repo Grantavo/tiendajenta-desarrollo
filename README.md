@@ -107,4 +107,4 @@ Las contribuciones son lo que hacen a la comunidad de código abierto un lugar i
 
 ---
 
-Desarrollado con ❤️ para **Grupo Jenta**.
+Desarrollado con ❤️ por **Grupo Jenta**.

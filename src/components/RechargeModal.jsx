@@ -1,29 +1,52 @@
-import React, { useState, useMemo } from "react"; // 1. CAMBIAMOS useEffect POR useMemo
+import React, { useState, useEffect } from "react";
 import { X, Copy, Check, MessageCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { db } from "../firebase/config";
+import { collection, getDocs } from "firebase/firestore";
+
+// Importar logos de bancos
+import nequiLogo from "../assets/nequi.png";
+import bancolombiaLogo from "../assets/bancolombia.png";
+import nubankLogo from "../assets/nubank.png";
+
+// Función para obtener el logo del banco
+const getBankLogo = (type) => {
+  const logos = {
+    "Nequi": nequiLogo,
+    "Bancolombia": bancolombiaLogo,
+    "Nubank": nubankLogo
+  };
+  return logos[type] || null;
+};
 
 export default function RechargeModal({ isOpen, onClose, user }) {
   const [amount, setAmount] = useState("");
-  // Eliminamos el estado 'paymentMethods' porque ahora será un valor memorizado
+  const [displayAmount, setDisplayAmount] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
 
-  // 2. CORRECCIÓN: USAMOS useMemo PARA LEER DATOS SIN CAUSAR RE-RENDERS
-  // Esto se ejecuta automáticamente cuando 'isOpen' cambia.
-  const paymentMethods = useMemo(() => {
-    // Si el modal está cerrado, no gastamos recursos leyendo localStorage
-    if (!isOpen) return [];
+  // Cargar métodos de pago desde Firebase cuando se abre el modal
+  useEffect(() => {
+    if (!isOpen) return;
 
-    try {
-      const savedPayments = JSON.parse(
-        localStorage.getItem("shopPayments") || "[]",
-      );
-      // Filtramos y retornamos directamente
-      return savedPayments.filter((p) => p.status === "active");
-    } catch (e) {
-      console.error("Error leyendo pagos", e);
-      return [];
-    }
-  }, [isOpen]); // Solo se recalcula si se abre/cierra el modal
+    const fetchPaymentMethods = async () => {
+      try {
+        const paymentsRef = collection(db, "paymentMethods");
+        const snapshot = await getDocs(paymentsRef);
+        
+        const methods = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(p => p.status === "active");
+        
+        setPaymentMethods(methods);
+      } catch (e) {
+        console.error("Error cargando métodos de pago:", e);
+        setPaymentMethods([]);
+      }
+    };
+
+    fetchPaymentMethods();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -35,7 +58,27 @@ export default function RechargeModal({ isOpen, onClose, user }) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // 4. FUNCIÓN PARA IR A WHATSAPP (INTACTA)
+  // 4. FUNCIÓN PARA MANEJAR CAMBIOS EN EL INPUT CON FORMATO
+  const handleAmountChange = (e) => {
+    const input = e.target.value;
+    // Remover todo excepto números
+    const numericValue = input.replace(/\D/g, "");
+    
+    if (numericValue === "") {
+      setAmount("");
+      setDisplayAmount("");
+      return;
+    }
+    
+    // Guardar valor numérico puro
+    setAmount(numericValue);
+    
+    // Formatear para mostrar con separadores de miles
+    const formatted = parseInt(numericValue).toLocaleString('es-CO');
+    setDisplayAmount(formatted);
+  };
+
+  // 5. FUNCIÓN PARA IR A WHATSAPP (INTACTA)
   const handleNotify = () => {
     if (!amount || amount < 1000) {
       toast.error("Por favor ingresa un monto válido (Mín. $1.000)");
@@ -52,7 +95,7 @@ export default function RechargeModal({ isOpen, onClose, user }) {
     const message = `👋 Hola, soy *${user.name}*.
     
 Quiero recargar mi Billetera Virtual.
-💰 *Monto:* $${parseInt(amount).toLocaleString()} COP
+💰 *Monto:* $${parseInt(amount).toLocaleString('es-CO')} COP
 📧 *Correo:* ${user.email}
 
 Adjunto mi comprobante de pago a continuación 👇`;
@@ -93,7 +136,7 @@ Adjunto mi comprobante de pago a continuación 👇`;
         </div>
 
         {/* Content Scrollable */}
-        <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar space-y-6 flex-1">
           {/* PASO 1: CUENTAS BANCARIAS */}
           <div>
             <h3 className="text-sm font-bold text-slate-400 uppercase mb-3">
@@ -107,16 +150,31 @@ Adjunto mi comprobante de pago a continuación 👇`;
                     key={pm.id}
                     className="bg-white border border-slate-200 p-4 rounded-xl flex justify-between items-center shadow-sm hover:border-green-200 transition-colors"
                   >
-                    <div>
-                      <p className="font-bold text-slate-800">{pm.type}</p>
-                      <p className="font-mono text-slate-600 text-sm mt-0.5">
-                        {pm.accountNumber}
-                      </p>
-                      {pm.instructions && (
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          {pm.instructions}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      {getBankLogo(pm.type) ? (
+                        <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1.5 shrink-0">
+                          <img 
+                            src={getBankLogo(pm.type)} 
+                            alt={pm.type}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white bg-slate-400 shrink-0">
+                          {pm.type.charAt(0)}
+                        </div>
                       )}
+                      <div>
+                        <p className="font-bold text-slate-800">{pm.type}</p>
+                        <p className="font-mono text-slate-600 text-sm mt-0.5">
+                          {pm.accountNumber}
+                        </p>
+                        {pm.instructions && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {pm.instructions}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={() => handleCopy(pm.accountNumber, pm.id)}
@@ -150,11 +208,12 @@ Adjunto mi comprobante de pago a continuación 👇`;
                 $
               </span>
               <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                value={displayAmount}
+                onChange={handleAmountChange}
                 placeholder="0"
-                className="w-full pl-8 pr-4 py-4 bg-gray-50 border border-slate-200 rounded-xl outline-none focus:border-green-500 font-bold text-xl text-slate-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full pl-8 pr-4 py-4 bg-gray-50 border border-slate-200 rounded-xl outline-none focus:border-green-500 font-bold text-xl text-slate-800"
               />
             </div>
           </div>

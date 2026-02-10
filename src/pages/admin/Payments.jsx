@@ -10,10 +10,25 @@ import {
   Copy,
 } from "lucide-react";
 
+// Importar logos de bancos
+import nequiLogo from "../../assets/nequi.png";
+import bancolombiaLogo from "../../assets/bancolombia.png";
+import nubankLogo from "../../assets/nubank.png";
+
 // 1. IMPORTAR SONNER Y FIREBASE
 import { toast } from "sonner";
 import { db } from "../../firebase/config";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc, query, where } from "firebase/firestore";
+
+// Función para obtener el logo del banco
+const getBankLogo = (type) => {
+  const logos = {
+    "Nequi": nequiLogo,
+    "Bancolombia": bancolombiaLogo,
+    "Nubank": nubankLogo
+  };
+  return logos[type] || null;
+};
 
 // Función segura para IDs
 const generateId = () => Date.now();
@@ -33,16 +48,55 @@ export default function Payments() {
   };
   const [form, setForm] = useState(initialForm);
 
-  // --- 2. CARGAR DESDE LA NUBE (FIREBASE) ---
+  // --- 2. CARGAR DESDE LA COLECCIÓN paymentMethods ---
   useEffect(() => {
     const fetchPayments = async () => {
       setLoading(true);
       try {
-        const docRef = doc(db, "settings", "payments");
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setPayments(docSnap.data().methods || []);
+        const paymentsRef = collection(db, "paymentMethods");
+        const snapshot = await getDocs(paymentsRef);
+        
+        const loadedMethods = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setPayments(loadedMethods);
+        // Sincronizar con localStorage para el modal del cliente
+        localStorage.setItem("shopPayments", JSON.stringify(loadedMethods));
+        window.dispatchEvent(new Event("storage"));
+        
+        // Si no hay métodos en Firebase pero sí en localStorage, migrar
+        if (loadedMethods.length === 0) {
+          const localData = localStorage.getItem("shopPayments");
+          if (localData) {
+            try {
+              const localMethods = JSON.parse(localData);
+              if (localMethods.length > 0) {
+                toast.info("Migrando datos antiguos...");
+                // Migrar cada método a la nueva colección
+                for (const method of localMethods) {
+                  const { id, ...methodData } = method; // Remover el id viejo
+                  await addDoc(paymentsRef, {
+                    ...methodData,
+                    createdAt: new Date(),
+                    migratedFrom: "localStorage"
+                  });
+                }
+                // Recargar después de migrar
+                const newSnapshot = await getDocs(paymentsRef);
+                const migratedMethods = newSnapshot.docs.map(doc => ({
+                  id: doc.id,
+                  ...doc.data()
+                }));
+                setPayments(migratedMethods);
+                localStorage.setItem("shopPayments", JSON.stringify(migratedMethods));
+                toast.success("Datos migrados exitosamente");
+              }
+            } catch (e) {
+              console.error("Error migrando datos:", e);
+            }
+          }
         }
       } catch (error) {
         console.error("Error cargando pagos:", error);
@@ -54,23 +108,7 @@ export default function Payments() {
     fetchPayments();
   }, []);
 
-  // --- 3. GUARDAR EN LA NUBE ---
-  const saveToCloud = async (newMethodsList) => {
-    try {
-      await setDoc(doc(db, "settings", "payments"), {
-        methods: newMethodsList,
-        updatedAt: new Date(),
-      });
-      // Sincronizar localmente para reactividad inmediata
-      localStorage.setItem("shopPayments", JSON.stringify(newMethodsList));
-      window.dispatchEvent(new Event("storage"));
-    } catch (error) {
-      console.error("Error guardando pagos:", error);
-      toast.error("No se pudo sincronizar con la nube");
-    }
-  };
-
-  // --- 4. FUNCIONES ---
+  // --- 3. GUARDAR NUEVO MÉTODO ---
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.type || !form.accountNumber) {
@@ -79,42 +117,108 @@ export default function Payments() {
       });
     }
 
-    const newPayment = {
-      ...form,
-      id: generateId(),
-    };
+    try {
+      const paymentsRef = collection(db, "paymentMethods");
+      const docRef = await addDoc(paymentsRef, {
+        ...form,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-    const updatedList = [...payments, newPayment];
-    setPayments(updatedList);
-    await saveToCloud(updatedList);
+      const newPayment = {
+        id: docRef.id,
+        ...form
+      };
 
-    toast.success("Cuenta agregada correctamente");
-    setForm(initialForm);
-    setIsModalOpen(false);
-  };
-
-  const deletePayment = async (id) => {
-    if (window.confirm("¿Eliminar este método de pago?")) {
-      const updatedList = payments.filter((p) => p.id !== id);
+      const updatedList = [...payments, newPayment];
       setPayments(updatedList);
-      await saveToCloud(updatedList);
-      toast.info("Método de pago eliminado");
+      
+      // Sincronizar con localStorage
+      localStorage.setItem("shopPayments", JSON.stringify(updatedList));
+      window.dispatchEvent(new Event("storage"));
+
+      toast.success("Cuenta agregada correctamente");
+      setForm(initialForm);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error guardando método:", error);
+      toast.error("Error al guardar el método de pago");
     }
   };
 
-  const toggleStatus = async (id) => {
-    const updatedList = payments.map((p) =>
-      p.id === id
-        ? { ...p, status: p.status === "active" ? "inactive" : "active" }
-        : p
-    );
-    setPayments(updatedList);
-    await saveToCloud(updatedList);
+  // --- 4. ELIMINAR MÉTODO ---
+  const deletePayment = async (id) => {
+    if (window.confirm("¿Eliminar este método de pago?")) {
+      try {
+        await deleteDoc(doc(db, "paymentMethods", id));
+        
+        const updatedList = payments.filter((p) => p.id !== id);
+        setPayments(updatedList);
+        
+        // Sincronizar con localStorage
+        localStorage.setItem("shopPayments", JSON.stringify(updatedList));
+        window.dispatchEvent(new Event("storage"));
+        
+        toast.info("Método de pago eliminado");
+      } catch (error) {
+        console.error("Error eliminando método:", error);
+        toast.error("Error al eliminar el método de pago");
+      }
+    }
+  };
 
-    const target = updatedList.find((p) => p.id === id);
-    toast.success(
-      target.status === "active" ? "Cuenta Activada" : "Cuenta Pausada"
-    );
+  // --- 5. CAMBIAR ESTADO ---
+  const toggleStatus = async (id) => {
+    try {
+      const payment = payments.find(p => p.id === id);
+      const newStatus = payment.status === "active" ? "inactive" : "active";
+      
+      await updateDoc(doc(db, "paymentMethods", id), {
+        status: newStatus,
+        updatedAt: new Date()
+      });
+
+      const updatedList = payments.map((p) =>
+        p.id === id ? { ...p, status: newStatus } : p
+      );
+      setPayments(updatedList);
+      
+      // Sincronizar con localStorage
+      localStorage.setItem("shopPayments", JSON.stringify(updatedList));
+      window.dispatchEvent(new Event("storage"));
+
+      toast.success(
+        newStatus === "active" ? "Cuenta Activada" : "Cuenta Pausada"
+      );
+    } catch (error) {
+      console.error("Error actualizando estado:", error);
+      toast.error("Error al actualizar el estado");
+    }
+  };
+
+  // --- 6. RESETEAR TODO ---
+  const resetAllData = async () => {
+    if (window.confirm("⚠️ ¿Estás seguro? Esto eliminará TODOS los métodos de pago y no se puede deshacer.")) {
+      try {
+        // Eliminar todos los documentos de la colección
+        const paymentsRef = collection(db, "paymentMethods");
+        const snapshot = await getDocs(paymentsRef);
+        
+        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+        
+        // Limpiar localStorage
+        localStorage.removeItem("shopPayments");
+        window.dispatchEvent(new Event("storage"));
+        
+        // Limpiar estado
+        setPayments([]);
+        toast.success("Todos los métodos de pago han sido eliminados");
+      } catch (error) {
+        console.error("Error reseteando datos:", error);
+        toast.error("Error al resetear los datos");
+      }
+    }
   };
 
   if (loading) {
@@ -143,6 +247,22 @@ export default function Payments() {
         </button>
       </div>
 
+      {/* Botón de Reset (solo visible si hay métodos) */}
+      {payments.length > 0 && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex justify-between items-center">
+          <div>
+            <p className="text-sm font-bold text-red-800">Zona de Peligro</p>
+            <p className="text-xs text-red-600">Eliminar todos los métodos de pago</p>
+          </div>
+          <button
+            onClick={resetAllData}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 flex items-center gap-2 text-sm"
+          >
+            <Trash2 size={16} /> Resetear Todo
+          </button>
+        </div>
+      )}
+
       {/* LISTA DE MÉTODOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {payments.map((payment) => (
@@ -156,15 +276,19 @@ export default function Payments() {
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                    payment.type === "Nequi"
-                      ? "bg-purple-900"
-                      : "bg-yellow-400 text-black"
-                  }`}
-                >
-                  {payment.type === "Nequi" ? "N" : "B"}
-                </div>
+                {getBankLogo(payment.type) ? (
+                  <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-2 shadow-sm">
+                    <img 
+                      src={getBankLogo(payment.type)} 
+                      alt={payment.type}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white bg-slate-400">
+                    {payment.type.charAt(0)}
+                  </div>
+                )}
                 <div>
                   <h3 className="font-bold text-slate-800">{payment.type}</h3>
                   <p className="text-xs text-slate-500 font-mono">
@@ -236,6 +360,7 @@ export default function Payments() {
                     <option value="">Selecciona...</option>
                     <option value="Bancolombia">Bancolombia</option>
                     <option value="Nequi">Nequi</option>
+                    <option value="Nubank">Nubank</option>
                   </select>
                 </div>
                 <div>
@@ -262,11 +387,11 @@ export default function Payments() {
 
                 <div className="mb-4">
                   <label className="block text-xs text-slate-400 font-bold mb-1">
-                    NÚMERO DE CUENTA / CELULAR
+                    NÚMERO DE CUENTA / CELULAR / LLAVE
                   </label>
                   <input
                     type="text"
-                    placeholder="Ej: 300 123 4567"
+                    placeholder="Ej: 300 123 4567 o correo@ejemplo.com"
                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 font-mono font-bold text-slate-700"
                     value={form.accountNumber}
                     onChange={(e) =>

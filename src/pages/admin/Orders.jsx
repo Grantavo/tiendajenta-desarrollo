@@ -27,6 +27,10 @@ import {
   getDoc,
   updateDoc,
   writeBatch,
+  runTransaction,
+  increment,
+  query,
+  where,
 } from "firebase/firestore";
 
 export default function Orders() {
@@ -129,7 +133,10 @@ export default function Orders() {
     let stockError = false;
     const multiplier = newPaymentStatus ? -1 : 1;
 
-    if (order.items && Array.isArray(order.items)) {
+    // Si el stock ya fue gestionado en el checkout, no lo tocamos aquí
+    const skipStock = order.stockDeducted === true;
+
+    if (order.items && Array.isArray(order.items) && !skipStock) {
       for (const item of order.items) {
         const prodIndex = updatedProducts.findIndex(
           (p) => String(p.id) === String(item.id)
@@ -208,22 +215,92 @@ export default function Orders() {
   };
 
   const cancelOrder = async (orderId) => {
+    // Buscar pedido comparando IDs de forma segura (como strings o números)
+    const order = orders.find((o) => String(o.id) === String(orderId));
+    if (!order) return;
+
     if (
-      window.confirm("¿Anular pedido? (El stock no cambia, solo el estado)")
+      window.confirm(
+        `¿Anular pedido #${orderId}?\n\n⚠️ Se DEVOLVERÁ el stock y el SALDO (si fue pagado con billetera).`
+      )
     ) {
       try {
-        await updateDoc(doc(db, "orders", String(orderId)), {
-          status: "Anulado",
+        let clientIdForRefund = order.clientId || null;
+
+        // Si no hay clientId, intentamos buscarlo por email antes de la transacción
+        if (!clientIdForRefund && order.paymentMethod === "Billetera" && order.customerEmail) {
+          const clientsRef = collection(db, "clients");
+          const q = query(clientsRef, where("email", "==", order.customerEmail));
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty) {
+            clientIdForRefund = qSnap.docs[0].id;
+          }
+        }
+
+        await runTransaction(db, async (transaction) => {
+          const orderRef = doc(db, "orders", String(orderId));
+          const orderSnap = await transaction.get(orderRef);
+          if (!orderSnap.exists()) throw "Pedido no encontrado";
+          const orderData = orderSnap.data();
+
+          if (orderData.status === "Anulado") throw "El pedido ya está anulado";
+
+          // 1. Devolver saldo si fue Billetera
+          if (orderData.paymentMethod === "Billetera" && clientIdForRefund) {
+            const clientRef = doc(db, "clients", clientIdForRefund);
+            
+            // CLEAN TOTAL: Asegurar que el total del pedido sea un número puro antes de sumar
+            const rawTotal = String(orderData.total || "0");
+            const cleanTotalAmount = Number(rawTotal.replace(/[.,]/g, "")) || 0;
+
+            transaction.update(clientRef, {
+              balance: increment(cleanTotalAmount)
+            });
+          }
+
+          // 2. Devolver stock de productos (solo si fue descontado)
+          if (orderData.stockDeducted !== false) { // Por defecto asumimos true para pedidos nuevos
+            const orderItems = orderData.items || [];
+            for (const item of orderItems) {
+              const productRef = doc(db, "products", String(item.id));
+              transaction.update(productRef, {
+                stock: increment(Number(item.qty || item.quantity) || 1)
+              });
+            }
+          }
+
+          // 3. Cambiar estado a Anulado
+          transaction.update(orderRef, { status: "Anulado" });
         });
+
+        // Actualizar UI local
         setOrders((prev) =>
           prev.map((o) =>
             String(o.id) === String(orderId) ? { ...o, status: "Anulado" } : o
           )
         );
-        toast.info("Pedido Anulado");
+
+        // --- CORRECCIÓN: ACTUALIZAR STOCK EN UI LOCAL TAMBIÉN ---
+        if (order.stockDeducted !== false) {
+           const orderItems = order.items || [];
+           setProducts(prevProducts => {
+              const newProducts = prevProducts.map(p => {
+                 const itemInOrder = orderItems.find(i => String(i.id) === String(p.id));
+                 if (itemInOrder) {
+                    const qtyToReturn = Number(itemInOrder.qty || itemInOrder.quantity) || 1;
+                    return { ...p, stock: Number(p.stock) + qtyToReturn };
+                 }
+                 return p;
+              });
+              return newProducts;
+           });
+        }
+        // -------------------------------------------------------
+
+        toast.success("Pedido Anulado con éxito. Saldo y stock devueltos.");
       } catch (error) {
         console.error("Error al anular:", error);
-        toast.error("Error al anular");
+        toast.error(typeof error === "string" ? error : "Error al anular el pedido");
       }
     }
   };

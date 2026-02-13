@@ -10,6 +10,9 @@ import { useCart } from "../context/CartContext";
 // FIREBASE
 import { db } from "../firebase/config";
 import {
+  onSnapshot,
+  getDoc,
+  increment,
   collection,
   getDocs,
   doc,
@@ -17,8 +20,6 @@ import {
   serverTimestamp,
   query,
   where,
-  onSnapshot,
-  getDoc,
 } from "firebase/firestore";
 import { toast } from "sonner";
 
@@ -36,6 +37,8 @@ import {
   Smartphone,
   Truck,
 } from "lucide-react";
+import useIdleTimer from "../hooks/useIdleTimer";
+import { useCallback } from "react";
 
 export default function ShopLayout() {
   const navigate = useNavigate();
@@ -99,6 +102,27 @@ export default function ShopLayout() {
     return () => unsubShipping();
   }, []);
 
+  // --- NUEVO: AUTO LOGOUT CLIENTES (60 MINUTOS) ---
+  const handleClientIdle = useCallback(() => {
+    // Solo cerrar si hay usuario (para no molestar a visitantes anónimos)
+    if (user) {
+      toast.warning("Sesión cerrada por inactividad");
+      // Usamos el logout del contexto que limpia todo
+      // (Asumimos que 'logout' está disponible en el contexto, si no, lo usamos desde useCart)
+      // Como useCart ya nos da 'logout', lo usamos directo si lo desestructuramos arriba
+      // Pero arriba no desestructuramos 'logout', así que lo agregamos ahora.
+      window.dispatchEvent(new Event("auth-change")); // Forzar evento por si acaso
+      sessionStorage.removeItem("shopUser");
+      localStorage.removeItem("shopUser");
+      window.location.reload(); // Recargar para limpiar estados
+    }
+  }, [user]);
+
+  useIdleTimer({
+    timeout: 1000 * 60 * 60, // 60 minutos
+    onIdle: handleClientIdle,
+  });
+
   // Cargar métodos de pago
   useEffect(() => {
     const loadPayments = () => {
@@ -111,6 +135,30 @@ export default function ShopLayout() {
     window.addEventListener("storage", loadPayments);
     return () => window.removeEventListener("storage", loadPayments);
   }, []);
+
+  // --- NUEVO: GUARDIÁN DE ADMIN (Evita que el Admin navegue la tienda por error) ---
+  useEffect(() => {
+    if (user?.roleId) {
+      try {
+        const rolesStr = localStorage.getItem("shopRoles");
+        if (rolesStr) {
+          const allRoles = JSON.parse(rolesStr);
+          const userRole = allRoles.find((r) => r.id === user.roleId);
+          const isAdmin = userRole?.isSystem || (userRole?.permissions && userRole.permissions.length > 0);
+          
+          if (isAdmin) {
+             // Si es Admin, lo mandamos de vuelta a su panel
+             // Usamos replace para que no pueda volver atrás
+             navigate("/admin", { replace: true });
+             // Opcional: Mostrar un toast explicativo
+             // toast.info("Redirigido al Panel de Admin");
+          }
+        }
+      } catch (e) {
+        console.error("Error verificando rol en ShopLayout", e);
+      }
+    }
+  }, [user, navigate]);
 
   // --- FUNCIÓN ACTUALIZAR CANTIDAD ---
   const updateQty = (productId, delta) => {
@@ -232,40 +280,74 @@ export default function ShopLayout() {
       }
 
       try {
-        console.log("🔍 DEBUG - User object:", user);
-        console.log("🔍 DEBUG - User ID:", user.id);
-        console.log("🔍 DEBUG - User email:", user.email);
-        
+        let newOrderId = "";
+
+        // 0. Generar ID corto secuencial con prefijo "P"
+        const ordersSnap = await getDocs(collection(db, "orders"));
+        const ids = ordersSnap.docs
+          .map((o) => {
+            const cleanId = String(o.id).replace(/\D/g, "");
+            return parseInt(cleanId);
+          })
+          .filter((n) => !isNaN(n));
+        const nextIdNumber = ids.length === 0 ? 1001 : Math.max(...ids) + 1;
+        newOrderId = `P${nextIdNumber}`;
+
         await runTransaction(db, async (transaction) => {
           // Usar user.id en lugar de user.email para buscar el documento
           const userRef = doc(db, "clients", user.id);
-          console.log("🔍 DEBUG - Looking for document:", `clients/${user.id}`);
-          
           const userSnap = await transaction.get(userRef);
-          console.log("🔍 DEBUG - Document exists:", userSnap.exists());
           
           if (!userSnap.exists()) throw "Perfil de usuario no encontrado";
 
-          const currentBalance = Number(userSnap.data().balance) || 0;
-          if (currentBalance < total) throw "Saldo insuficiente en billetera";
+          // CLEAN BALANCE: Convertir "70.000" o 70000 a un número puro 
+          const rawBalance = String(userSnap.data().balance || "0");
+          const cleanBalance = Number(rawBalance.replace(/[.,]/g, "")) || 0;
+          
+          if (cleanBalance < total) throw "Saldo insuficiente en billetera";
 
-          transaction.update(userRef, { balance: currentBalance - total });
+          // 1. Descontar saldo de forma ATÓMICA
+          transaction.update(userRef, { 
+            balance: increment(-total) 
+          });
 
-          const orderRef = doc(collection(db, "orders"));
+          // 2. Descontar stock de productos
+          cart.forEach((item) => {
+            const productDocRef = doc(db, "products", item.id);
+            transaction.update(productDocRef, { 
+              stock: increment(-(Number(item.quantity || item.qty) || 1)) 
+            });
+          });
+
+          // 3. Crear registro del pedido
+          const orderRef = doc(db, "orders", newOrderId);
           transaction.set(orderRef, {
+            id: newOrderId,
             customerEmail: user.email,
-            items: cart,
+            customerName: user.name || "Cliente",
+            clientId: user.id,
+            phone: user.phone || "",
+            items: cart.map(i => ({ ...i, qty: i.quantity || i.qty || 1 })),
             total: total,
             paymentMethod: "Billetera",
-            status: "paid",
+            isPaid: true,
+            stockDeducted: true,
+            status: "Pendiente", // CAMBIO: Capitalizado para coincidir con Admin
             createdAt: serverTimestamp(),
+            date: new Date().toLocaleDateString("es-CO", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
           });
         });
 
-        toast.success("Pago exitoso.");
+        toast.success("Pago con billetera exitoso.");
         clearCart();
         setIsCartOpen(false);
-        navigate("/thank-you");
+        // PASAR ESTADO A THANK-YOU PARA EVITAR REDIRECCIÓN
+        navigate("/thank-you", { state: { orderId: newOrderId, total, items: cart, paymentMethod: "Billetera" } });
         return;
       } catch (error) {
         toast.error(
@@ -338,14 +420,69 @@ export default function ShopLayout() {
     message += `\n\n*TOTAL A PAGAR: $${total.toLocaleString()}*`;
     
     // MÉTODO DE PAGO
-    if (selectedPayment) {
-        message += `\n\n💳 *Método de Pago:* ${selectedPayment.type}`;
-    }
+    message += `\n💳 Método: ${selectedPayment.type}`;
 
-    window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
-      "_blank",
-    );
+    try {
+      // 0. Generar ID corto secuencial con prefijo "P"
+      const ordersSnap = await getDocs(collection(db, "orders"));
+      const ids = ordersSnap.docs
+        .map((o) => {
+          const cleanId = String(o.id).replace(/\D/g, "");
+          return parseInt(cleanId);
+        })
+        .filter((n) => !isNaN(n));
+      const nextIdNumber = ids.length === 0 ? 1001 : Math.max(...ids) + 1;
+      const newOrderId = `P${nextIdNumber}`;
+
+      const orderDocRef = doc(db, "orders", newOrderId);
+      
+      await runTransaction(db, async (transaction) => {
+        // 1. Descontar stock de productos para pedido de WhatsApp
+        cart.forEach((item) => {
+          const productDocRef = doc(db, "products", item.id);
+          transaction.update(productDocRef, { 
+            stock: increment(-(Number(item.quantity || item.qty) || 1)) 
+          });
+        });
+
+        // 2. Crear registro del pedido en Firestore para el admin
+        transaction.set(orderDocRef, {
+          id: newOrderId,
+          customerEmail: user?.email || "Sin correo",
+          customerName: user?.name || "Cliente WhatsApp",
+          clientId: user?.id || null,
+          phone: user?.phone || phone || "",
+          items: cart.map(i => ({ ...i, qty: i.quantity || i.qty || 1 })),
+          total: total,
+          paymentMethod: selectedPayment.type,
+          isPaid: false, // Se coordina el pago por WhatsApp
+          stockDeducted: true, // Descontamos stock de una vez
+          status: "Pendiente", // CAMBIO: Capitalizado
+          createdAt: serverTimestamp(),
+          date: new Date().toLocaleDateString("es-CO", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      });
+
+      // 3. Abrir WhatsApp
+      window.open(
+        `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+        "_blank",
+      );
+
+      toast.success("Procesando pedido... Validando pago");
+      clearCart();
+      setIsCartOpen(false);
+      // PASAR ESTADO A THANK-YOU PARA EVITAR REDIRECCIÓN
+      navigate("/thank-you", { state: { orderId: newOrderId, total, items: cart, paymentMethod: selectedPayment.type } });
+    } catch (error) {
+      console.error("Error al registrar pedido de WhatsApp:", error);
+      toast.error("Ocurrió un error al procesar tu pedido.");
+    }
   };
 
   return (

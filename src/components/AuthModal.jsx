@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Mail, Lock, User, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { hashPassword } from "../utils/crypto";
 
 // FIREBASE
 import { db } from "../firebase/config";
@@ -93,6 +94,7 @@ export default function AuthModal({ isOpen, onClose }) {
 
     try {
       const email = formData.email.trim();
+      const passwordHash = await hashPassword(formData.password.trim());
 
       // 1. Buscar en CLIENTES
       let q = query(collection(db, "clients"), where("email", "==", email));
@@ -115,10 +117,11 @@ export default function AuthModal({ isOpen, onClose }) {
       let matchedUser = null;
       let matchedDocId = null;
 
-      // REVISAR CADA COINCIDENCIA (Por si hay duplicados con/sin clave)
+      // REVISAR CADA COINCIDENCIA
       snap.docs.forEach((doc) => {
         const data = doc.data();
-        if (data.password === formData.password.trim()) {
+        // COMPARAMOS CON EL HASH
+        if (data.password === passwordHash) {
            matchedUser = data;
            matchedDocId = doc.id;
         }
@@ -191,16 +194,19 @@ export default function AuthModal({ isOpen, onClose }) {
         return;
       }
 
+      // HASHING PASSWORD
+      const passwordHash = await hashPassword(formData.password.trim());
+
       // 2. Crear Cliente
       const newClient = {
         name: formData.name.trim(),
         email: formData.email.trim(),
-        password: formData.password.trim(),
+        password: passwordHash, // GUARDAMOS LA CONTRASEÑA ENCRIPTADA
         phone: formData.phone,
         role: "client",
         balance: 0, // UNIFICADO: Usamos 'balance' igual que en Admin
         points: 0,
-        points: 0,
+        points: 0, // Nota: Parece duplicado en el original, lo dejo igual
         createdAt: serverTimestamp(),
       };
 

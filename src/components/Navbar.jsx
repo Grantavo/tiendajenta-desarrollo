@@ -415,9 +415,9 @@ export default function Navbar({ onOpenCart }) {
                           navigate("/perfil");
                           setIsMobileMenuOpen(false);
                         }}
-                        className="text-xs text-blue-600 font-medium"
+                        className="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded-full mt-1 flex items-center gap-1 w-fit"
                       >
-                        Gestionar mi cuenta
+                         Ir a mi Oficina <ChevronRight size={12} />
                       </button>
                     </div>
                   </div>

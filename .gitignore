@@ -5,6 +5,8 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.development
+
 
 # --- DEPENDENCIAS ---
 # No se suben porque se instalan con 'npm install' en cada PC o en Vercel

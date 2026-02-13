@@ -1,13 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, ChevronRight, Share2, Plus, GripHorizontal } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronRight, ChevronLeft, Share2, Plus, GripHorizontal, User, Calendar, MapPin, Globe, Users } from 'lucide-react';
 import { useFinnhub } from '../../hooks/useFinnhub';
 
 // CONSTANTES Y CONFIGURACIÓN
 const MARKET_OPEN_MINUTES = 9.5 * 60; // 9:30 AM
 const MARKET_CLOSE_MINUTES = 16 * 60; // 4:00 PM
 const EXTENDED_CLOSE_MINUTES = 18.5 * 60; // 6:30 PM (Para mostrar after-hours)
+
+// DEBUG MODE (True para ver datos crudos)
+const SHOW_DEBUG = true;
 
 // Offset para el gradiente (dónde termina el mercado regular y empieza after-hours)
 // (16 - 9.5) / (18.5 - 9.5) ≈ 0.722
@@ -136,7 +139,22 @@ export default function AssetDetail() {
   const isPositive = percent >= 0;
   const previousClose = price - change;
 
+
+  
+  // LISTA DE ACCIONES RELACIONADAS
+  const RELATED_SYMBOLS = ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "TSLA", "NFLX", "META", "INTC"];
+
   const [timeRange, setTimeRange] = useState('1 día');
+  const [isCompanyInfoOpen, setIsCompanyInfoOpen] = useState(false); // Por defecto cerrado para ahorrar espacio en móvil
+  const scrollRef = React.useRef(null);
+
+  const scroll = (direction) => {
+      if (scrollRef.current) {
+          const { current } = scrollRef;
+          const scrollAmount = direction === 'left' ? -200 : 200;
+          current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+  };
   
   // Agregar efecto para cargar historial al cambiar rango o símbolo
   React.useEffect(() => {
@@ -214,12 +232,29 @@ export default function AssetDetail() {
       return generateDataForRange(timeRange, price, previousClose);
   }, [history, timeRange, price, previousClose]);
 
+  // Estado de carga o error
+  if (!data) {
+      if (loading) {
+          return (
+              <div className="flex h-screen items-center justify-center bg-white">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                  <span className="ml-3 text-slate-500 font-medium">Cargando información...</span>
+              </div>
+          );
+      }
+      return (
+          <div className="flex h-screen items-center justify-center bg-white">
+              <span className="text-red-500 font-medium">No se pudo cargar la información de {symbol}</span>
+          </div>
+      );
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-4 animate-in fade-in duration-500 pb-24 font-sans bg-white min-h-screen">
       
       {/* 1. BREADCRUMBS */}
       <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 uppercase tracking-wide">
-          <span onClick={() => navigate(-1)} className="cursor-pointer hover:underline">INICIO</span>
+          <span onClick={() => navigate('/inversiones')} className="cursor-pointer hover:underline">INICIO</span>
           <ChevronRight size={12} />
           <span>{symbol}</span>
           <ChevronRight size={12} />
@@ -349,54 +384,188 @@ export default function AssetDetail() {
                      </div>
                  )}
             </div>
-        </div>
 
-        {/* COLUMNA DERECHA: ESTADÍSTICAS */}
-        <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-[#dadce0] p-0 shadow-sm overflow-hidden">
-                
-                {/* Header de la tarjeta */}
-                <div className="flex gap-2 p-3 border-b border-[#dadce0]">
-                    <span className="px-3 py-1 bg-[#f1f3f4] text-[#3c4043] rounded-full text-[11px] font-medium border border-[#dadce0]">ETF</span>
-                    <span className="px-3 py-1 bg-[#f1f3f4] text-[#3c4043] rounded-full text-[11px] font-medium border border-[#dadce0]">Valor cotizado en EE. UU.</span>
+             {/* CARRUSEL DE ACCIONES RELACIONADAS (Estilo Google Finance) */}
+             <div className="mt-6 relative group">
+                <div className="flex justify-between items-center mb-3 px-1">
+                    <h3 className="text-[#202124] text-[16px] font-normal">Otras empresas</h3>
+                    <div className="hidden md:flex gap-1">
+                        <button onClick={() => scroll('left')} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
+                            <ChevronLeft size={20} />
+                        </button>
+                        <button onClick={() => scroll('right')} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
+                            <ChevronRight size={20} />
+                        </button>
+                    </div>
                 </div>
                 
-                <div className="p-4 space-y-3">
-                    <div className="flex justify-between items-center text-[12px] border-b border-[#f1f3f4] pb-2">
-                        <span className="text-[#5f6368] font-bold uppercase tracking-wider">Cierre anterior</span>
-                        <span className="text-[#202124] font-medium">
-                            {previousClose.toLocaleString(undefined, { minimumFractionDigits: 2 })} $
+                <div 
+                    ref={scrollRef}
+                    className="flex gap-3 overflow-x-auto pb-4 no-scrollbar snap-x overscroll-x-contain touch-pan-x w-full"
+                >
+                    {RELATED_SYMBOLS.map(sym => (
+                        <RelatedStockCard key={sym} symbol={sym} currentSymbol={symbol} />
+                    ))}
+                </div>
+             </div>
+        </div>
+
+        {/* COLUMNA DERECHA: ESTADÍSTICAS (Estilo Google Finance) */}
+        <div className="space-y-6">
+            <div className="bg-white rounded-lg border border-[#dadce0] overflow-hidden shadow-sm">
+                
+                {/* 1. Header de la tarjeta */}
+                <div className="flex flex-wrap gap-2 p-4 border-b border-[#dadce0]">
+                    <span className="px-3 py-1 bg-white text-[#1967d2] rounded-full text-[12px] font-medium border border-[#dadce0] flex items-center gap-1 shadow-sm">
+                        <ArrowUpRight size={14} /> Mayor actividad
+                    </span>
+                    <span className="px-3 py-1 bg-[#f1f3f4] text-[#3c4043] rounded-full text-[12px] font-medium border border-transparent">Acción</span>
+                    <span className="px-3 py-1 bg-[#f1f3f4] text-[#3c4043] rounded-full text-[12px] font-medium border border-transparent">Valor cotizado en EE. UU.</span>
+                    <span className="px-3 py-1 bg-[#f1f3f4] text-[#3c4043] rounded-full text-[12px] font-medium border border-transparent">Sede en EE. UU.</span>
+                </div>
+                
+                {/* 2. Tabla de Datos */}
+                <div className="px-5 py-2">
+            
+            
+                    {/* FILA 1: CIERRE ANTERIOR */}
+
+                    {/* FILA 1: CIERRE ANTERIOR */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Cierre anterior</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                            {(data?.prevClose || previousClose).toLocaleString('es-CO', { minimumFractionDigits: 2 })} $
                         </span>
                     </div>
-                    <div className="flex justify-between items-center text-[12px] border-b border-[#f1f3f4] pb-2">
-                        <span className="text-[#5f6368] font-bold uppercase tracking-wider">Intervalo diario</span>
-                        <span className="text-[#202124] font-medium">
-                            {(price * 0.98).toFixed(2)} $ - {(price * 1.02).toFixed(2)} $
+
+                    {/* FILA 2: INTERVALO DIARIO */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Intervalo diario</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                            {(data?.low || price * 0.98).toLocaleString('es-CO', { minimumFractionDigits: 2 })} $ - {(data?.high || price * 1.02).toLocaleString('es-CO', { minimumFractionDigits: 2 })} $
                         </span>
                     </div>
-                    <div className="flex justify-between items-center text-[12px] border-b border-[#f1f3f4] pb-2">
-                        <span className="text-[#5f6368] font-bold uppercase tracking-wider">Intervalo anual</span>
-                        <span className="text-[#202124] font-medium">
-                             {(price * 0.7).toFixed(2)} $ - {(price * 1.3).toFixed(2)} $
+
+                    {/* FILA 3: INTERVALO ANUAL */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Intervalo anual</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                             {(price * 0.7).toLocaleString('es-CO', { minimumFractionDigits: 2 })} $ - {(price * 1.3).toLocaleString('es-CO', { minimumFractionDigits: 2 })} $
                         </span>
                     </div>
-                    <div className="flex justify-between items-center text-[12px] pt-1">
-                        <span className="text-[#5f6368] font-bold uppercase tracking-wider">Volumen medio</span>
-                        <span className="text-[#202124] font-medium">
-                            84,86 M
+
+                    {/* FILA 4: CAP. BURSÁTIL */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Cap. bursátil</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                            {data?.marketCap || "250,95 mil M USD"}
+                        </span>
+                    </div>
+
+                    {/* FILA 5: VOLUMEN MEDIO */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Volumen medio</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                            124,86 M
+                        </span>
+                    </div>
+
+                    {/* FILA 6: P/E */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Relación precio-beneficio</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                            {data?.pe || "-"}
+                        </span>
+                    </div>
+
+                    {/* FILA 7: DIVIDENDOS */}
+                    <div className="flex justify-between items-center py-3 border-b border-[#f1f3f4]">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Rentabilidad por dividendo</span>
+                        <span className="text-[14px] text-[#202124] font-medium">
+                            {data?.dividend ? `${data.dividend}%` : "-"}
+                        </span>
+                    </div>
+
+                     {/* FILA 8: BOLSA */}
+                     <div className="flex justify-between items-center py-3">
+                        <span className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider">Bolsa de valores principal</span>
+                        <span className="text-[14px] text-[#202124] font-bold uppercase">
+                            NASDAQ
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* BOTONES ACCIÓN */}
-            <div className="flex gap-3">
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-[#dadce0] text-[#1967d2] text-[13px] font-medium hover:bg-[#f8f9fa] transition">
-                    <Plus size={18} /> Seguir
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-[#dadce0] text-[#1967d2] text-[13px] font-medium hover:bg-[#f8f9fa] transition">
-                    <Share2 size={18} /> Compartir
-                </button>
+            {/* SECCIÓN SOBRE LA EMPRESA */}
+            <div className="bg-white rounded-lg border border-[#dadce0] overflow-hidden shadow-sm transition-all duration-300">
+                <div 
+                    className="p-4 border-b border-[#dadce0] flex justify-between items-center bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                    onClick={() => setIsCompanyInfoOpen(!isCompanyInfoOpen)}
+                >
+                    <h3 className="text-[#202124] text-[16px] font-normal select-none">Información sobre la empresa</h3>
+                    <ChevronRight 
+                        size={20} 
+                        className={`text-[#5f6368] transition-transform duration-300 ${isCompanyInfoOpen ? 'rotate-90' : ''}`} 
+                    />
+                </div>
+                
+                {/* Contenido Colapsable */}
+                <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isCompanyInfoOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="p-5 space-y-5">
+                    <p className="text-[14px] text-[#3c4043] leading-relaxed">
+                        {data?.description}
+                        {data?.wiki_url && (
+                            <a href={data.wiki_url} target="_blank" rel="noopener noreferrer" className="text-[#1a73e8] ml-1 hover:underline">
+                                Wikipedia
+                            </a>
+                        )}
+                    </p>
+                    
+                    <div className="pt-2 grid grid-cols-1 space-y-4">
+                        <div className="flex items-center gap-4 border-b border-[#f1f3f4] pb-3">
+                            <div className="w-5 text-center"><span className="text-[#5f6368]"><User size={18} /></span></div>
+                            <div className="flex-1">
+                                <p className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider mb-0.5">Director ejecutivo</p>
+                                <p className="text-[14px] text-[#1a73e8] font-medium cursor-pointer hover:underline">{data?.ceo || "-"}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 border-b border-[#f1f3f4] pb-3">
+                            <div className="w-5 text-center"><span className="text-[#5f6368]"><Calendar size={18} /></span></div>
+                            <div className="flex-1">
+                                <p className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider mb-0.5">Fundación</p>
+                                <p className="text-[14px] text-[#202124] font-medium">{data?.founded || "-"}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 border-b border-[#f1f3f4] pb-3">
+                            <div className="w-5 text-center"><span className="text-[#5f6368]"><MapPin size={18} /></span></div>
+                            <div className="flex-1">
+                                <p className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider mb-0.5">Sede</p>
+                                <p className="text-[14px] text-[#1a73e8] font-medium cursor-pointer hover:underline">{data?.hq || "-"}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 border-b border-[#f1f3f4] pb-3">
+                            <div className="w-5 text-center"><span className="text-[#5f6368]"><Globe size={18} /></span></div>
+                            <div className="flex-1">
+                                <p className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider mb-0.5">Sitio web</p>
+                                <a href={`https://${data?.website}`} target="_blank" rel="noopener noreferrer" className="text-[#1a73e8] font-medium hover:underline">
+                                    {data?.website || "-"}
+                                </a>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="w-5 text-center"><span className="text-[#5f6368]"><Users size={18} /></span></div>
+                            <div className="flex-1">
+                                <p className="text-[11px] text-[#5f6368] font-bold uppercase tracking-wider mb-0.5">Empleados</p>
+                                <p className="text-[14px] text-[#202124] font-medium">{data?.employees || "-"}</p>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -404,3 +573,40 @@ export default function AssetDetail() {
     </div>
   );
 }
+
+// SUB-COMPONENTE PARA TARJETA DE ACCIÓN
+const RelatedStockCard = ({ symbol, currentSymbol }) => {
+    const navigate = useNavigate();
+    const { data } = useFinnhub(symbol);
+    
+    // No mostramos la tarjeta si es la misma acción que estamos viendo
+    if (symbol === currentSymbol) return null;
+
+    const price = data?.price || 0;
+    const change = data?.change || 0;
+    const percent = data?.percent || 0;
+    const isPositive = percent >= 0;
+
+    return (
+        <div 
+            onClick={() => navigate(`/inversiones/${symbol}`)}
+            className="min-w-[140px] md:min-w-[160px] p-3 border border-[#dadce0] rounded-lg bg-white cursor-pointer hover:shadow-md transition-shadow snap-start flex flex-col justify-between h-[80px]"
+        >
+            <div className="flex justify-between items-start">
+                 <span className="text-[12px] font-bold text-[#5f6368]">{symbol}</span>
+                 {/* Mini gráfico visual (simulado con color) */}
+                 <div className={`w-8 h-4 rounded-sm ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}></div>
+            </div>
+            
+            <div className="mt-1">
+                <div className="text-[14px] font-medium text-[#202124]">{price.toFixed(2)} $</div>
+                <div className={`text-[12px] font-medium flex items-center gap-0.5 ${isPositive ? 'text-[#137333]' : 'text-[#a50e0e]'}`}>
+                    {isPositive ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
+                    {Math.abs(percent).toFixed(2)} %
+                </div>
+            </div>
+        </div>
+    );
+};
+
+

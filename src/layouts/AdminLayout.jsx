@@ -14,6 +14,9 @@ import {
 
 import { db } from "../firebase/config";
 import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
+import { toast } from "sonner";
+import useIdleTimer from "../hooks/useIdleTimer";
+import { useCallback } from "react";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -41,6 +44,18 @@ export default function AdminLayout() {
   });
 
   const fileInputRef = useRef(null);
+
+  // --- NUEVO: AUTO LOGOUT POR INACTIVIDAD (15 MINUTOS) ---
+  const handleIdle = useCallback(() => {
+    toast.warning("Sesión cerrada por inactividad");
+    sessionStorage.removeItem("shopUser");
+    navigate("/login");
+  }, [navigate]);
+
+  useIdleTimer({
+    timeout: 1000 * 60 * 15, // 15 minutos
+    onIdle: handleIdle,
+  });
 
   useEffect(() => {
     const loadData = async () => {

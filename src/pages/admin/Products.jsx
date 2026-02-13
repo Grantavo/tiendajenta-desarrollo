@@ -123,6 +123,15 @@ export default function AdminProducts() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Si es precio, limpiamos caracteres no numéricos
+    if (name === "price" || name === "oldPrice") {
+       // Eliminar todo lo que no sea dígito
+       const rawValue = value.replace(/\D/g, "");
+       setFormData((prev) => ({ ...prev, [name]: rawValue }));
+       return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -593,16 +602,18 @@ export default function AdminProducts() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Precio Real (*)</label>
                     <input
                       name="price"
-                      type="number"
-                      value={formData.price}
+                      type="text"
+                      // Usamos formatPrice si hay valor, si no cadena vacía
+                      value={formData.price ? formatPrice(formData.price) : ""}
                       onChange={handleInputChange}
                       required
                       className={inputClass}
+                      placeholder="$ 0"
                     />
                   </div>
                   <div>
@@ -610,10 +621,11 @@ export default function AdminProducts() {
                     <div className="relative">
                       <input
                         name="oldPrice"
-                        type="number"
-                        value={formData.oldPrice}
+                        type="text"
+                        value={formData.oldPrice ? formatPrice(formData.oldPrice) : ""}
                         onChange={handleInputChange}
                         className={inputClass}
+                        placeholder="$ 0"
                       />
                       {formData.price && formData.oldPrice > formData.price && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded-lg">

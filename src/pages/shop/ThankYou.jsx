@@ -8,7 +8,7 @@ export default function ThankYou() {
 
   // 1. Intentamos leer los datos. Si no existen, usamos valores por defecto para no romper la página.
   const state = location.state || {};
-  const { orderId, total, items } = state;
+  const { orderId, total, items, paymentMethod } = state;
 
   // Estado para controlar la redirección segura
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -35,6 +35,9 @@ export default function ThankYou() {
     );
   }
 
+  // Verificar si es un método que requiere verificación (WhatsApp, Transferencia)
+  const needsVerification = paymentMethod === "WhatsApp" || paymentMethod === "Transferencia";
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="bg-white max-w-md w-full rounded-3xl shadow-xl overflow-hidden animate-in zoom-in duration-300">
@@ -54,11 +57,11 @@ export default function ThankYou() {
           {/* Si hay ID, lo mostramos. Si no, mostramos mensaje genérico */}
           {orderId ? (
             <div className="text-center mb-8">
-              <p className="text-sm text-slate-400 uppercase tracking-wider font-bold mb-1">
+              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">
                 Número de Pedido
               </p>
-              <p className="text-3xl font-black text-slate-800 tracking-tight">
-                #{orderId}
+              <p className="text-4xl font-black text-slate-800 tracking-tighter">
+                {orderId}
               </p>
             </div>
           ) : (
@@ -69,6 +72,21 @@ export default function ThankYou() {
                 <br />
                 Revisa tu historial.
               </p>
+            </div>
+          )}
+
+          {/* Mensaje de Verificación para Transferencias */}
+          {needsVerification && (
+            <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 items-start">
+              <div className="bg-blue-100 p-2 rounded-lg text-blue-600 shrink-0">
+                <Loader2 size={18} className="animate-spin" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-blue-800">Verificación Pendiente</p>
+                <p className="text-xs text-blue-600 mt-1 leading-relaxed">
+                  Tu pedido se procesará profesionalmente una vez que hayamos verificado tu transferencia.
+                </p>
+              </div>
             </div>
           )}
 
@@ -98,7 +116,7 @@ export default function ThankYou() {
                 })}
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-slate-200">
-                <span className="font-bold text-slate-800">Total Pagado</span>
+                <span className="font-bold text-slate-800">Total</span>
                 <span className="text-xl font-black text-green-600">
                   ${Number(total || 0).toLocaleString("es-CO")}
                 </span>
@@ -109,8 +127,8 @@ export default function ThankYou() {
           {/* Botones de Acción */}
           <div className="space-y-3">
             <button
-              onClick={() => navigate("/dashboard")}
-              className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold hover:bg-slate-900 transition flex items-center justify-center gap-2 shadow-lg shadow-slate-800/20"
+              onClick={() => navigate("/perfil", { state: { openOrders: true } })}
+              className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold hover:bg-slate-900 transition flex items-center justify-center gap-2 shadow-lg shadow-slate-800/20"
             >
               <ShoppingBag size={18} /> Ver mis Pedidos
             </button>
@@ -125,7 +143,7 @@ export default function ThankYou() {
       </div>
 
       <p className="mt-8 text-slate-400 text-sm text-center max-w-xs">
-        Hemos procesado tu pago de forma segura.
+        Gracias por confiar en nosotros. Tu satisfacción es nuestra prioridad.
       </p>
 
       <style jsx>{`

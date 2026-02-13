@@ -50,6 +50,11 @@ export default function ClientDashboard() {
       }
       window.history.replaceState({}, document.title);
     }
+
+    if (location.state?.openOrders) {
+      setIsOrdersOpen(true);
+      window.history.replaceState({}, document.title);
+    }
   }, [location]);
 
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
@@ -109,8 +114,17 @@ export default function ClientDashboard() {
             collection: "clients",
           };
 
-          // Evitar loops infinitos
-          if (JSON.stringify(updatedData) !== JSON.stringify(user)) {
+          // Evitar loops infinitos: COMPARACIÓN EXACTA DE CAMPOS CLAVE
+          // JSON.stringify puede fallar si el orden de las llaves cambia
+          const hasChanged = 
+            updatedData.balance !== user.balance ||
+            updatedData.investmentBalance !== user.investmentBalance ||
+            updatedData.name !== user.name ||
+            updatedData.phone !== user.phone ||
+            updatedData.address !== user.address;
+
+          if (hasChanged) {
+             console.log("Sincronizando datos de usuario:", updatedData);
              setUser(updatedData);
              sessionStorage.setItem("shopUser", JSON.stringify(updatedData));
           }

@@ -166,7 +166,7 @@ export default function MyOrdersModal({ isOpen, onClose, user }) {
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1 ${getStatusColor(order.status)}`}
                           >
-                            {getStatusIcon(order.status)} {order.status}
+                            {getStatusIcon(order.status)} {order.status === "Pendiente" ? "Validando Pago" : order.status}
                           </span>
                           <span className="text-xs text-slate-400 flex items-center gap-1">
                             <Calendar size={12} /> {order.date}

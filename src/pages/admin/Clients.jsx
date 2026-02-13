@@ -16,6 +16,9 @@ import {
   Map,
   Building2,
   TrendingUp,
+  Clock,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -27,6 +30,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  increment,
+  arrayUnion,
 } from "firebase/firestore";
 
 export default function Clients() {
@@ -92,20 +97,38 @@ export default function Clients() {
     setRechargeAmount(formatCurrency(parseInt(rawValue, 10)));
   };
 
-  const getClientStats = (phone) => {
-    if (!orders.length) return { count: 0, total: 0, history: [] };
-    const cleanPhone = String(phone || "").replace(/\D/g, "");
-    const clientOrders = orders.filter(
-      (o) => String(o.phone || "").replace(/\D/g, "") === cleanPhone,
-    );
-    const totalSpent = clientOrders.reduce(
+  const getClientStats = (client) => {
+    if (!orders.length || !client) return { count: 0, total: 0, history: [] };
+    
+    const cleanPhone = String(client.phone || "").replace(/\D/g, "");
+    const clientEmail = String(client.email || "").toLowerCase().trim();
+    const clientId = client.id;
+
+    // Buscamos por ID, Email o Teléfono para máxima compatibilidad
+    const clientOrders = orders.filter((o) => {
+      const orderPhone = String(o.phone || "").replace(/\D/g, "");
+      const orderEmail = String(o.customerEmail || o.clientEmail || "").toLowerCase().trim();
+      const orderClientId = o.clientId;
+
+      return (
+        (clientId && orderClientId === clientId) ||
+        (clientEmail && orderEmail === clientEmail) ||
+        (cleanPhone && orderPhone === cleanPhone && cleanPhone.length > 5)
+      );
+    });
+
+    // Filtramos solo pedidos válidos (excluimos Anulados y Eliminados para el Total)
+    const validOrders = clientOrders.filter(o => o.status !== "Anulado" && o.status !== "Eliminado");
+
+    const totalSpent = validOrders.reduce(
       (acc, order) => acc + (Number(order.total) || 0),
       0,
     );
+
     return {
-      count: clientOrders.length,
+      count: validOrders.length,
       total: totalSpent,
-      history: clientOrders,
+      history: clientOrders, // Mantenemos todo el historial para ver pedidos anulados también
     };
   };
 
@@ -114,6 +137,19 @@ export default function Clients() {
     if (!formData.name || !formData.phone)
       return toast.warning("Campos obligatorios");
     try {
+      // VALIDAR DUPLICADOS
+      const existingClient = clients.find(c => 
+        (c.email && c.email.toLowerCase() === formData.email.toLowerCase()) || 
+        (c.phone && c.phone === formData.phone)
+      );
+
+      if (existingClient) {
+        toast.error("Ya existe un cliente con este correo o teléfono", {
+          description: `ID: ${existingClient.name}`,
+        });
+        return;
+      }
+
       await addDoc(collection(db, "clients"), {
         ...formData,
         isVip: false,
@@ -175,33 +211,26 @@ export default function Clients() {
       const currentBalanceClean = currentBalanceRaw.replace(/[.,]/g, "");
       let newBalance = Number(currentBalanceClean) || 0;
       
-      if (transactionType === "withdrawal") {
-        if (newBalance < cleanAmount) {
-          return toast.error("Saldo insuficiente para realizar el descuento");
-        }
-        newBalance -= cleanAmount;
-      } else {
-        newBalance += cleanAmount;
-      }
+      const incrementValue = transactionType === "withdrawal" ? -cleanAmount : cleanAmount;
+      const transactionRecord = {
+          type: transactionType,
+          wallet: walletType === 'investment' ? 'Inversión' : 'Billetera',
+          amount: cleanAmount,
+          date: new Date().toISOString(),
+          adminId: "admin", // Podría ser dinámico si hubiera varios admins
+      };
 
       const updateData = {};
       if (walletType === 'investment') {
-          updateData.investmentBalance = newBalance;
-          updateData.lastInvestmentRecharge = {
-              type: transactionType,
-              amount: cleanAmount,
-              date: new Date().toISOString(),
-              adminId: "admin",
-          };
+          updateData.investmentBalance = increment(incrementValue);
+          updateData.lastInvestmentRecharge = transactionRecord;
       } else {
-          updateData.balance = newBalance;
-          updateData.lastRecharge = {
-              type: transactionType,
-              amount: cleanAmount,
-              date: new Date().toISOString(),
-              adminId: "admin",
-          };
+          updateData.balance = increment(incrementValue);
+          updateData.lastRecharge = transactionRecord;
       }
+
+      // Guardar en el historial persistente (array)
+      updateData.transactionHistory = arrayUnion(transactionRecord);
 
       await updateDoc(doc(db, "clients", selectedClient.id), updateData);
       
@@ -268,7 +297,7 @@ export default function Clients() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {filteredClients.map((client) => {
-              const stats = getClientStats(client.phone);
+              const stats = getClientStats(client);
               return (
                 <div
                   key={client.id}
@@ -379,7 +408,13 @@ export default function Clients() {
                     <div className="flex items-center justify-between">
                       <span className="text-3xl font-black text-green-700">
                         {" "}
-                        ${(selectedClient.balance || 0).toLocaleString()}{" "}
+                        $
+                        {Number(
+                          String(selectedClient.balance || "0").replace(
+                            /[.,]/g,
+                            "",
+                          ),
+                        ).toLocaleString()}{" "}
                       </span>
                       <div className="flex flex-col gap-2">
                         <button
@@ -414,7 +449,12 @@ export default function Clients() {
                     <div className="flex items-center justify-between">
                       <span className="text-3xl font-black text-indigo-700">
                         {" "}
-                        ${(selectedClient.investmentBalance || 0).toLocaleString()}{" "}
+                        $
+                        {Number(
+                          String(
+                            selectedClient.investmentBalance || "0",
+                          ).replace(/[.,]/g, ""),
+                        ).toLocaleString()}{" "}
                       </span>
                       <div className="flex flex-col gap-2">
                         <button
@@ -449,12 +489,12 @@ export default function Clients() {
                       {" "}
                       $
                       {getClientStats(
-                        selectedClient.phone,
+                        selectedClient
                       ).total.toLocaleString()}{" "}
                     </span>
                     <p className="text-sm text-slate-500 mt-1">
                       {" "}
-                      {getClientStats(selectedClient.phone).count} pedidos{" "}
+                      {getClientStats(selectedClient).count} pedidos válidos{" "}
                     </p>
                   </div>
                 </div>
@@ -511,6 +551,45 @@ export default function Clients() {
                       handleUpdateNotes(selectedClient.id, e.target.value)
                     }
                   ></textarea>{" "}
+                </div>
+
+                {/* HISTORIAL DE TRANSACCIONES */}
+                <div className="mb-4">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                    <Clock size={14} /> Historial de Transacciones
+                  </h3>
+                  <div className="bg-white border rounded-2xl overflow-hidden">
+                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                      {selectedClient.transactionHistory && selectedClient.transactionHistory.length > 0 ? (
+                        <div className="divide-y divide-slate-100">
+                          {[...selectedClient.transactionHistory].reverse().map((tx, idx) => (
+                            <div key={idx} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${tx.type === 'deposit' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                  {tx.type === 'deposit' ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-slate-800">
+                                    {tx.type === 'deposit' ? 'Recarga' : 'Descuento'} ({tx.wallet || 'Billetera'})
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-medium">
+                                    {new Date(tx.date).toLocaleDateString('es-CO')} - {new Date(tx.date).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className={`text-sm font-black ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-500'}`}>
+                                {tx.type === 'deposit' ? '+' : '-'}${Number(tx.amount || 0).toLocaleString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center">
+                          <p className="text-xs font-bold text-slate-400 italic">Sin movimientos registrados</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

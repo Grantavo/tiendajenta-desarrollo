@@ -4,6 +4,7 @@ import { Lock, Mail, ChevronRight, AlertCircle } from "lucide-react";
 import { db } from "../../firebase/config";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "sonner";
+import { hashPassword } from "../../utils/crypto";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -52,8 +53,10 @@ export default function Login() {
       const docSnap = querySnapshot.docs[0];
       const userData = { id: docSnap.id, ...docSnap.data() };
 
-      // 2. Validar Contraseña (SIMPLE - En producción usar Firebase Auth real)
-      if (userData.password !== formData.password) {
+      // 2. Validar Contraseña (HASHING)
+      const passwordHash = await hashPassword(formData.password);
+      
+      if (userData.password !== passwordHash) {
         setError("Contraseña incorrecta.");
         setLoading(false);
         return;

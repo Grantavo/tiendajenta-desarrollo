@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true, // Expone el servidor a la red (0.0.0.0)
-    allowedHosts: [".ngrok-free.app"], // Permite subdominios de ngrok
+    allowedHosts: true, // Permite cualquier host (incluido ngrok)
   },
   future: {
     v3_fetcherPersist: true,

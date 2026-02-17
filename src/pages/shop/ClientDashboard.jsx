@@ -9,6 +9,7 @@ import {
   LogOut,
   ArrowUpCircle,
   TrendingUp,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ import RechargeModal from "../../components/RechargeModal";
 import EditProfileModal from "../../components/EditProfileModal";
 import MyOrdersModal from "../../components/MyOrdersModal";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
+import MyReviewsModal from "../../components/MyReviewsModal";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
@@ -58,6 +60,7 @@ export default function ClientDashboard() {
   }, [location]);
 
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
   // 1. INICIALIZACIÓN DE USUARIO
   const [user, setUser] = useState(() => {
@@ -182,6 +185,14 @@ export default function ClientDashboard() {
       bg: "bg-purple-50",
       action: () => setIsProfileOpen(true),
     },
+    {
+      title: "Mis Reseñas",
+      desc: "Opiniones sobre tus compras",
+      icon: <Star size={32} />,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+      action: () => setIsReviewsOpen(true),
+    },
   ];
 
   return (
@@ -277,6 +288,12 @@ export default function ClientDashboard() {
         isOpen={isSecurityOpen}
         onClose={() => setIsSecurityOpen(false)}
         user={user}
+      />
+
+      <MyReviewsModal
+        isOpen={isReviewsOpen}
+        onClose={() => setIsReviewsOpen(false)}
+        userId={user?.id}
       />
     </div>
   );

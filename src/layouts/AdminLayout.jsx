@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import Sidebar from "../components/admin/Sidebar";
 import {
   Search,
@@ -12,8 +12,9 @@ import {
   Menu,
 } from "lucide-react";
 
-import { db } from "../firebase/config";
+import { auth, db } from "../firebase/config";
 import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import { toast } from "sonner";
 import useIdleTimer from "../hooks/useIdleTimer";
 import { useCallback } from "react";
@@ -21,9 +22,15 @@ import { useCallback } from "react";
 export default function AdminLayout() {
   const navigate = useNavigate();
 
+  const { user: authUser } = useOutletContext() || {};
+  
   const [currentUser, setCurrentUser] = useState(
-    JSON.parse(sessionStorage.getItem("shopUser") || "{}")
+    authUser || JSON.parse(sessionStorage.getItem("shopUser") || "{}")
   );
+
+  useEffect(() => {
+    if (authUser) setCurrentUser(authUser);
+  }, [authUser]);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -46,8 +53,9 @@ export default function AdminLayout() {
   const fileInputRef = useRef(null);
 
   // --- NUEVO: AUTO LOGOUT POR INACTIVIDAD (15 MINUTOS) ---
-  const handleIdle = useCallback(() => {
+  const handleIdle = useCallback(async () => {
     toast.warning("Sesión cerrada por inactividad");
+    await signOut(auth);
     sessionStorage.removeItem("shopUser");
     navigate("/login");
   }, [navigate]);
@@ -60,16 +68,21 @@ export default function AdminLayout() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [prodSnap, userSnap, orderSnap] = await Promise.all([
+        const [prodSnap, userSnap, orderSnap, roleSnap] = await Promise.all([
           getDocs(collection(db, "products")),
           getDocs(collection(db, "users")),
           getDocs(collection(db, "orders")),
+          getDocs(collection(db, "roles")),
         ]);
         setFirebaseData({
           products: prodSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
           users: userSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
           orders: orderSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
         });
+        
+        // GUARDAR ROLES PARA EL SIDEBAR (usePermissions)
+        const rolesData = roleSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        localStorage.setItem("shopRoles", JSON.stringify(rolesData));
       } catch (e) {
         console.error(e);
       }
@@ -92,8 +105,9 @@ export default function AdminLayout() {
     return () => observer.disconnect();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm("¿Cerrar sesión?")) {
+      await signOut(auth);
       sessionStorage.removeItem("shopUser");
       navigate("/login");
     }

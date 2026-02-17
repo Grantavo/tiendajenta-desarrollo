@@ -13,6 +13,7 @@ import {
 import { db } from "../../firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import ReviewSection from "../../components/ReviewSection";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -322,6 +323,9 @@ export default function ProductDetail() {
             </div>
           </div>
         </div>
+
+        {/* SECCIÓN DE RESEÑAS */}
+        <ReviewSection productId={id} productName={product.title} />
       </div>
     </div>
   );

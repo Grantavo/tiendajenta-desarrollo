@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNCIONES AUXILIARES ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --- REGLAS POR COLECCIÓN ---
+
+    // 1. PRODUCTOS
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAuthenticated();
+    }
+
+    // 2. CATEGORÍAS, BANNERS, CONFIG
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /shipping_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /coupons/{couponId} {
+      allow read: if true; 
+      allow write: if isAdmin();
+    }
+
+    // 3. USUARIOS ADMIN Y ROLES
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isAdmin();
+    }
+    match /roles/{roleId} {
+      allow read: if isAuthenticated(); 
+      allow write: if isAdmin();
+    }
+
+    // 4. CLIENTES
+    match /clients/{clientId} {
+      allow read, write: if isOwner(clientId) || isAdmin();
+    }
+
+    // 5. PEDIDOS
+    match /orders/{orderId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && (resource.data.clientId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // 6. CARRITOS
+    match /carts/{cartId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 7. CONTADORES (IDs secuenciales)
+    match /counters/{counterId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+    }
+
+    // 8. RESEÑAS
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

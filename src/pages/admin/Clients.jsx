@@ -19,10 +19,12 @@ import {
   Clock,
   ArrowUpRight,
   ArrowDownLeft,
+  KeyRound,
 } from "lucide-react";
 
 import { toast } from "sonner";
-import { db } from "../../firebase/config";
+import { db, auth } from "../../firebase/config";
+import { sendPasswordResetEmail } from "firebase/auth";
 import {
   collection,
   onSnapshot,
@@ -244,6 +246,24 @@ export default function Clients() {
 
   const openWhatsApp = (phone, name) => {
     window.open(`https://wa.me/${phone}?text=Hola ${name}`, "_blank");
+  };
+
+  const handlePasswordReset = async (email, name) => {
+    if (!email) return toast.error("Este cliente no tiene correo registrado");
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success(`Correo de restablecimiento enviado a ${name}`, {
+        description: email,
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error("Error enviando reset:", error);
+      if (error.code === "auth/user-not-found") {
+        toast.error("Este correo no tiene cuenta registrada en el sistema");
+      } else {
+        toast.error("Error al enviar correo: " + error.message);
+      }
+    }
   };
 
   const filteredClients = clients.filter(
@@ -511,6 +531,12 @@ export default function Clients() {
                     <div className="text-sm text-slate-700 font-medium flex items-center gap-2">
                       <Mail size={14} /> {selectedClient.email}
                     </div>{" "}
+                    <button
+                      onClick={() => handlePasswordReset(selectedClient.email, selectedClient.name)}
+                      className="mt-3 w-full flex items-center justify-center gap-2 bg-orange-50 text-orange-600 border border-orange-200 px-3 py-2 rounded-xl font-bold text-xs hover:bg-orange-100 transition"
+                    >
+                      <KeyRound size={14} /> Restablecer Contraseña
+                    </button>
                   </div>
                   <div className="p-5 bg-slate-50 rounded-2xl border">
                     {" "}

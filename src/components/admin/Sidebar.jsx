@@ -221,15 +221,15 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* FOOTER USER */}
       <div className="p-6 border-t border-slate-200/50">
-        <Link
-          to="/"
+        <a
+          href="/?preview=admin"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-slate-900 hover:scale-[1.02] transition-all duration-300"
         >
           <LogOut size={18} />
           <span>Ver Tienda</span>
-        </Link>
+        </a>
       </div>
     </aside>
     </>

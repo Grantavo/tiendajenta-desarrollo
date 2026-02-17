@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // 1. IMPORTAMOS LAS HERRAMIENTAS DE OPTIMIZACIÓN DE REACT
 import { lazy, Suspense } from "react";
 import { Toaster } from "sonner";
@@ -9,7 +9,7 @@ import LoadingSpinner from "./components/LoadingSpinner";
 // --- IMPORTACIONES ESTÁTICAS (CRÍTICAS) ---
 // Estas se cargan al instante para dar estructura visual inmediata.
 import ShopLayout from "./layouts/ShopLayout";
-import Login from "./pages/auth/Login";
+// import Login from "./pages/auth/Login"; // YA NO SE USA
 import ProtectedRoute from "./pages/auth/ProtectedRoute";
 import { CartProvider } from "./context/CartContext";
 
@@ -45,6 +45,7 @@ const BoldConfig = lazy(() => import("./pages/admin/BoldConfig"));
 const Shipping = lazy(() => import("./pages/admin/Shipping"));
 const Migration = lazy(() => import("./pages/admin/Migration"));
 
+
 export default function App() {
   return (
     <CartProvider>
@@ -55,8 +56,8 @@ export default function App() {
         */}
         <Suspense fallback={<LoadingSpinner fullScreen />}>
           <Routes>
-            {/* RUTA LOGIN (Pública - Carga rápida estática) */}
-            <Route path="/login" element={<Login />} />
+            {/* RUTA LOGIN (Redirección a Home para usar Modal) */}
+            <Route path="/login" element={<Navigate to="/" replace />} />
 
             {/* TIENDA (Pública) */}
             {/* ShopLayout es estático, pero sus hijos (Home, etc.) son dinámicos */}
@@ -118,6 +119,8 @@ export default function App() {
                 <Route path="envios" element={<Shipping />} />
               </Route>
             </Route>
+
+
           </Routes>
         </Suspense>
       </BrowserRouter>

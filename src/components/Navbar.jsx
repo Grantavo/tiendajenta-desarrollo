@@ -401,32 +401,32 @@ export default function Navbar({ onOpenCart }) {
               </div>
 
               {userSession ? (
-                <div className="bg-white/40 rounded-2xl p-4 border border-white/40 backdrop-blur-sm">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100/60 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center font-black text-lg shadow-md shadow-blue-200">
                       {getUserInitial()}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-slate-800 line-clamp-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-800 line-clamp-1 text-base">
                         {userSession.name}
                       </p>
-                      <button
-                        onClick={() => {
-                          navigate("/perfil");
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded-full mt-1 flex items-center gap-1 w-fit"
-                      >
-                         Ir a mi Oficina <ChevronRight size={12} />
-                      </button>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Wallet size={13} className="text-emerald-600" />
+                        <span className="text-emerald-600 font-bold text-sm">
+                          ${getUserBalance().toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-200/30">
-                    <div className="flex items-center gap-2 text-[#25D366] font-bold">
-                      <Wallet size={18} />
-                      <span>Saldo: ${getUserBalance().toLocaleString()}</span>
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => {
+                      navigate("/perfil");
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-md shadow-blue-200"
+                  >
+                    Gestionar Mi Cuenta <ChevronRight size={14} />
+                  </button>
                 </div>
               ) : (
                 <button

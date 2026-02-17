@@ -10,8 +10,9 @@ import {
 import { toast } from "sonner";
 
 // FIREBASE
-import { db } from "../firebase/config";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db, auth } from "../firebase/config";
+import { doc, onSnapshot, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const CartContext = createContext();
 
@@ -57,6 +58,68 @@ export function CartProvider({ children }) {
       window.removeEventListener("auth-change", handleAuthChange);
       window.removeEventListener("storage", handleAuthChange);
     };
+  }, []);
+
+  // --- FIREBASE AUTH LISTENER: Detecta login con Google (redirect o popup) ---
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) return; // No hay usuario autenticado
+
+      // Si ya tenemos sesión activa con este mismo email, no hacer nada
+      const currentSession = getUserFromStorage();
+      if (currentSession?.email?.toLowerCase() === firebaseUser.email?.toLowerCase()) return;
+
+      console.log("🟢 [AUTH] Usuario detectado por Firebase:", firebaseUser.email);
+
+      try {
+        // Verificar si ya existe en users (admin) o clients
+        let userData = null;
+        let collectionName = "users";
+        let isNew = false;
+
+        let docRef = doc(db, "users", firebaseUser.uid);
+        let docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          docRef = doc(db, "clients", firebaseUser.uid);
+          docSnap = await getDoc(docRef);
+          collectionName = "clients";
+        }
+
+        if (docSnap.exists()) {
+          userData = { id: firebaseUser.uid, ...docSnap.data(), collection: collectionName };
+        } else {
+          // Usuario NUEVO — crear perfil en clients
+          isNew = true;
+          const newClient = {
+            name: firebaseUser.displayName || "Cliente Google",
+            email: firebaseUser.email,
+            phone: "",
+            role: "client",
+            balance: 0,
+            points: 0,
+            createdAt: serverTimestamp(),
+          };
+          await setDoc(doc(db, "clients", firebaseUser.uid), newClient);
+          collectionName = "clients";
+          userData = {
+            id: firebaseUser.uid,
+            ...newClient,
+            collection: "clients",
+            createdAt: new Date().toISOString(),
+          };
+        }
+
+        // Guardar sesión y actualizar estado
+        sessionStorage.setItem("shopUser", JSON.stringify(userData));
+        setUser(userData);
+        toast.success(`¡Bienvenido, ${userData.name || firebaseUser.displayName}!`);
+      } catch (error) {
+        console.error("🔴 [AUTH] Error procesando usuario Google:", error);
+      }
+    });
+
+    return () => unsubAuth();
   }, []);
 
   // 3. SINCRONIZACIÓN USER DATA (Firebase)
@@ -178,11 +241,17 @@ export function CartProvider({ children }) {
       await setDoc(doc(db, "carts", email), { items: [] }, { merge: true });
   }, [user?.email]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     sessionStorage.removeItem("shopUser");
     localStorage.removeItem("shopUser");
     setCart([]); // Limpiar carrito visualmente
     setUser(null);
+    // CERRAR SESIÓN DE FIREBASE AUTH (evita usuarios fantasma)
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Error cerrando Firebase Auth:", e);
+    }
     window.dispatchEvent(new Event("auth-change")); // Avisar a toda la app
     toast.info("Sesión cerrada");
   }, []);

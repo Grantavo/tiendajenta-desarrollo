@@ -3,12 +3,14 @@ import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import WhatsAppFloat from "../components/WhatsAppFloat";
+import AuthModal from "../components/AuthModal"; // Importamos AuthModal
+import { User } from "lucide-react"; // Asegurar que User esté importado
 
 // IMPORTAR EL CONTEXTO DEL CARRITO (YA TIENE SINCRONIZACIÓN)
 import { useCart } from "../context/CartContext";
 
 // FIREBASE
-import { db } from "../firebase/config";
+import { db, auth } from "../firebase/config";
 import {
   onSnapshot,
   getDoc,
@@ -56,6 +58,9 @@ export default function ShopLayout() {
   // Estado para el Método de Pago
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
+
+  // Estado para el Modal de Login (Controlado localmente o via evento)
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   // --- EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO Y BANNERS) ---
   const [topBar, setTopBar] = useState(null);
@@ -136,8 +141,17 @@ export default function ShopLayout() {
     return () => window.removeEventListener("storage", loadPayments);
   }, []);
 
-  // --- NUEVO: GUARDIÁN DE ADMIN (Evita que el Admin navegue la tienda por error) ---
+  // --- GUARDIÁN DE ADMIN (Evita que el Admin navegue la tienda por error) ---
+  // Excepción: si abrió "Ver Tienda" en nueva pestaña, dejarlo navegar
   useEffect(() => {
+    // Detectar si vino con ?preview=admin y guardar la marca
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("preview") === "admin") {
+      sessionStorage.setItem("adminPreview", "true");
+    }
+    // Si tiene la marca de preview, no redirigir
+    if (sessionStorage.getItem("adminPreview")) return;
+
     if (user?.roleId) {
       try {
         const rolesStr = localStorage.getItem("shopRoles");
@@ -147,11 +161,7 @@ export default function ShopLayout() {
           const isAdmin = userRole?.isSystem || (userRole?.permissions && userRole.permissions.length > 0);
           
           if (isAdmin) {
-             // Si es Admin, lo mandamos de vuelta a su panel
-             // Usamos replace para que no pueda volver atrás
              navigate("/admin", { replace: true });
-             // Opcional: Mostrar un toast explicativo
-             // toast.info("Redirigido al Panel de Admin");
           }
         }
       } catch (e) {
@@ -280,46 +290,77 @@ export default function ShopLayout() {
       }
 
       try {
+        // 0. Generar ID Secuencial (Atomic Increment)
+        // Usamos una referencia a counters/orders
+        const counterRef = doc(db, "counters", "orders");
         let newOrderId = "";
-
-        // 0. Generar ID corto secuencial con prefijo "P"
-        const ordersSnap = await getDocs(collection(db, "orders"));
-        const ids = ordersSnap.docs
-          .map((o) => {
-            const cleanId = String(o.id).replace(/\D/g, "");
-            return parseInt(cleanId);
-          })
-          .filter((n) => !isNaN(n));
-        const nextIdNumber = ids.length === 0 ? 1001 : Math.max(...ids) + 1;
-        newOrderId = `P${nextIdNumber}`;
-
+        
         await runTransaction(db, async (transaction) => {
-          // Usar user.id en lugar de user.email para buscar el documento
+          // ===== FASE 1: TODAS LAS LECTURAS =====
+          const counterSnap = await transaction.get(counterRef);
+          
           const userRef = doc(db, "clients", user.id);
           const userSnap = await transaction.get(userRef);
           
           if (!userSnap.exists()) throw "Perfil de usuario no encontrado";
 
-          // CLEAN BALANCE: Convertir "70.000" o 70000 a un número puro 
+          // Leer todos los productos
+          let serverSubtotal = 0;
+          const validatedItems = [];
+
+          for (const item of cart) {
+             const productRef = doc(db, "products", item.id);
+             const productSnap = await transaction.get(productRef);
+
+             if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
+
+             const pData = productSnap.data();
+             const realPrice = Number(pData.price);
+             const currentStock = Number(pData.stock);
+             const qty = Number(item.quantity || item.qty || 1);
+
+             if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
+
+             serverSubtotal += realPrice * qty;
+             validatedItems.push({ 
+                ...item, 
+                price: realPrice,
+                qty: qty,
+                ref: productRef 
+             });
+          }
+
+          // Validaciones con datos leídos
+          const serverDiscount = appliedDiscount 
+             ? (serverSubtotal * appliedDiscount.percent) / 100 
+             : 0;
+          const serverTotal = serverSubtotal - serverDiscount + shippingCost;
+
           const rawBalance = String(userSnap.data().balance || "0");
           const cleanBalance = Number(rawBalance.replace(/[.,]/g, "")) || 0;
           
-          if (cleanBalance < total) throw "Saldo insuficiente en billetera";
+          if (cleanBalance < serverTotal) throw `Saldo insuficiente. Total real: $${serverTotal.toLocaleString()}`;
 
-          // 1. Descontar saldo de forma ATÓMICA
+          // Calcular nuevo ID
+          let nextId = 1001;
+          if (counterSnap.exists()) {
+              nextId = (counterSnap.data().seq || 1000) + 1;
+          }
+          newOrderId = `P${nextId}`;
+
+          // ===== FASE 2: TODAS LAS ESCRITURAS =====
+          transaction.set(counterRef, { seq: nextId }, { merge: true });
+
           transaction.update(userRef, { 
-            balance: increment(-total) 
+            balance: increment(-serverTotal) 
           });
 
-          // 2. Descontar stock de productos
-          cart.forEach((item) => {
-            const productDocRef = doc(db, "products", item.id);
-            transaction.update(productDocRef, { 
-              stock: increment(-(Number(item.quantity || item.qty) || 1)) 
+          for (const item of validatedItems) {
+            transaction.update(item.ref, { 
+              stock: increment(-item.qty) 
             });
-          });
+          }
 
-          // 3. Crear registro del pedido
           const orderRef = doc(db, "orders", newOrderId);
           transaction.set(orderRef, {
             id: newOrderId,
@@ -327,12 +368,15 @@ export default function ShopLayout() {
             customerName: user.name || "Cliente",
             clientId: user.id,
             phone: user.phone || "",
-            items: cart.map(i => ({ ...i, qty: i.quantity || i.qty || 1 })),
-            total: total,
+            items: validatedItems.map(({ ref, ...rest }) => rest),
+            subtotal: serverSubtotal,
+            discount: serverDiscount,
+            shipping: shippingCost,
+            total: serverTotal,
             paymentMethod: "Billetera",
             isPaid: true,
             stockDeducted: true,
-            status: "Pendiente", // CAMBIO: Capitalizado para coincidir con Admin
+            status: "Pendiente",
             createdAt: serverTimestamp(),
             date: new Date().toLocaleDateString("es-CO", {
               day: "2-digit",
@@ -423,41 +467,83 @@ export default function ShopLayout() {
     message += `\n💳 Método: ${selectedPayment.type}`;
 
     try {
-      // 0. Generar ID corto secuencial con prefijo "P"
-      const ordersSnap = await getDocs(collection(db, "orders"));
-      const ids = ordersSnap.docs
-        .map((o) => {
-          const cleanId = String(o.id).replace(/\D/g, "");
-          return parseInt(cleanId);
-        })
-        .filter((n) => !isNaN(n));
-      const nextIdNumber = ids.length === 0 ? 1001 : Math.max(...ids) + 1;
-      const newOrderId = `P${nextIdNumber}`;
-
-      const orderDocRef = doc(db, "orders", newOrderId);
+      // 0. Generar ID Secuencial (Atomic Increment)
+      const counterRef = doc(db, "counters", "orders");
+      let newOrderId = "";
       
-      await runTransaction(db, async (transaction) => {
-        // 1. Descontar stock de productos para pedido de WhatsApp
-        cart.forEach((item) => {
-          const productDocRef = doc(db, "products", item.id);
-          transaction.update(productDocRef, { 
-            stock: increment(-(Number(item.quantity || item.qty) || 1)) 
-          });
-        });
+      console.log("🔵 [CHECKOUT WA] Iniciando transacción...");
+      console.log("🔵 [CHECKOUT WA] User (sessionStorage):", user?.id, user?.email);
+      console.log("🔵 [CHECKOUT WA] auth.currentUser:", auth.currentUser?.uid, auth.currentUser?.email);
+      
+      if (!auth.currentUser) {
+        toast.error("Tu sesión expiró. Por favor inicia sesión de nuevo.");
+        setIsAuthOpen(true);
+        return;
+      }
 
-        // 2. Crear registro del pedido en Firestore para el admin
+      await runTransaction(db, async (transaction) => {
+        // ===== FASE 1: TODAS LAS LECTURAS =====
+        console.log("🟡 [PASO 1] Leyendo contador...");
+        const counterSnap = await transaction.get(counterRef);
+        console.log("✅ [PASO 1] Contador leído OK. Existe:", counterSnap.exists());
+
+        console.log("🟡 [PASO 2] Leyendo productos del carrito...");
+        const validatedItems = [];
+        
+        for (const item of cart) {
+             const productRef = doc(db, "products", item.id);
+             console.log("  🟡 Leyendo producto:", item.id, item.title);
+             const productSnap = await transaction.get(productRef);
+             console.log("  ✅ Producto leído OK:", item.title);
+
+             if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
+
+             const pData = productSnap.data();
+             const currentStock = Number(pData.stock);
+             const qty = Number(item.quantity || item.qty || 1);
+
+             if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
+
+             validatedItems.push({ 
+                ...item, 
+                qty: qty,
+                ref: productRef 
+             });
+        }
+
+        // Calcular nuevo ID
+        let nextId = 1001;
+        if (counterSnap.exists()) {
+            nextId = (counterSnap.data().seq || 1000) + 1;
+        }
+        newOrderId = `P${nextId}`;
+        console.log("✅ [PASO 2] Todos los productos validados. Nuevo ID:", newOrderId);
+
+        // ===== FASE 2: TODAS LAS ESCRITURAS =====
+        console.log("🟡 [PASO 3] Escribiendo contador...");
+        transaction.set(counterRef, { seq: nextId }, { merge: true });
+
+        console.log("🟡 [PASO 4] Actualizando stock de productos...");
+        for (const item of validatedItems) {
+          transaction.update(item.ref, { 
+            stock: increment(-item.qty) 
+          });
+        }
+
+        console.log("🟡 [PASO 5] Creando orden:", newOrderId);
+        const orderDocRef = doc(db, "orders", newOrderId);
         transaction.set(orderDocRef, {
           id: newOrderId,
           customerEmail: user?.email || "Sin correo",
           customerName: user?.name || "Cliente WhatsApp",
           clientId: user?.id || null,
           phone: user?.phone || phone || "",
-          items: cart.map(i => ({ ...i, qty: i.quantity || i.qty || 1 })),
+          items: validatedItems.map(({ ref, ...rest }) => rest),
           total: total,
           paymentMethod: selectedPayment.type,
-          isPaid: false, // Se coordina el pago por WhatsApp
-          stockDeducted: true, // Descontamos stock de una vez
-          status: "Pendiente", // CAMBIO: Capitalizado
+          isPaid: false, 
+          stockDeducted: true, 
+          status: "Pendiente", 
           createdAt: serverTimestamp(),
           date: new Date().toLocaleDateString("es-CO", {
             day: "2-digit",
@@ -466,7 +552,10 @@ export default function ShopLayout() {
             minute: "2-digit",
           }),
         });
+        console.log("✅ [PASO 5] Orden escrita (pendiente commit)");
       });
+
+      console.log("🟢 [CHECKOUT WA] ¡Transacción completada con éxito!");
 
       // 3. Abrir WhatsApp
       window.open(
@@ -480,8 +569,11 @@ export default function ShopLayout() {
       // PASAR ESTADO A THANK-YOU PARA EVITAR REDIRECCIÓN
       navigate("/thank-you", { state: { orderId: newOrderId, total, items: cart, paymentMethod: selectedPayment.type } });
     } catch (error) {
-      console.error("Error al registrar pedido de WhatsApp:", error);
-      toast.error("Ocurrió un error al procesar tu pedido.");
+      console.error("🔴 [CHECKOUT WA] ERROR:", error);
+      console.error("🔴 [CHECKOUT WA] Error code:", error?.code);
+      console.error("🔴 [CHECKOUT WA] Error message:", error?.message);
+      const errMsg = error?.message || error?.code || (typeof error === "string" ? error : "Error desconocido");
+      toast.error(`Error: ${errMsg}`);
     }
   };
 
@@ -620,7 +712,7 @@ export default function ShopLayout() {
                     const cleanBalance = rawBalance.replace(/[.,]/g, ""); 
                     const balanceNum = Number(cleanBalance) || 0;
                     
-                    if (!user || balanceNum <= 0) return null;
+                    if (!user) return null; // Solo requerimos usuario logueado
 
                     return (
                   <div
@@ -772,19 +864,33 @@ export default function ShopLayout() {
             </div>
 
             <button
-              onClick={handleCheckout}
+              onClick={() => {
+                if (!user) {
+                  toast.info("Debes iniciar sesión para completar tu pedido");
+                  setIsAuthOpen(true);
+                  return;
+                }
+                handleCheckout();
+              }}
               disabled={
                 selectedPayment?.type === "Billetera" &&
                 Number(user?.balance || 0) < total
               }
               className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Completar Pedido <ArrowRight size={20} />
+              {user ? (
+                <>Completar Pedido <ArrowRight size={20} /></>
+              ) : (
+                <>Iniciar Sesión para Comprar <User size={20} /></>
+              )}
             </button>
           </div>
         )}
       </div>
       <WhatsAppFloat hide={isCartOpen} />
+      
+      {/* MODAL DE LOGIN */}
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>
   );
 }

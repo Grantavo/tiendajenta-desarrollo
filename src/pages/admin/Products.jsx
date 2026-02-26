@@ -9,6 +9,7 @@ import {
   X,
   UploadCloud,
   Image as ImageIcon,
+  Trophy,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 
@@ -69,6 +70,7 @@ export default function AdminProducts() {
     description: "",
     reference: "",
     brand: "",
+    bonusPoints: "",
     items: [],
     images: [null, null, null, null],
   };
@@ -125,7 +127,7 @@ export default function AdminProducts() {
     const { name, value } = e.target;
     
     // Si es precio, limpiamos caracteres no numéricos
-    if (name === "price" || name === "oldPrice") {
+    if (name === "price" || name === "oldPrice" || name === "bonusPoints") {
        // Eliminar todo lo que no sea dígito
        const rawValue = value.replace(/\D/g, "");
        setFormData((prev) => ({ ...prev, [name]: rawValue }));
@@ -187,6 +189,7 @@ export default function AdminProducts() {
         description: formData.description || "",
         reference: finalRef,
         brand: formData.brand || "Genérica",
+        bonusPoints: Number(formData.bonusPoints) || 0,
         items: formData.items
           ? formData.items.filter((i) => i && i.trim() !== "")
           : [],
@@ -641,7 +644,7 @@ export default function AdminProducts() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className={labelClass}>Stock (*)</label>
                     <input
@@ -652,18 +655,6 @@ export default function AdminProducts() {
                       required
                       className={inputClass}
                     />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Destacado</label>
-                    <select
-                      name="bestSeller"
-                      value={formData.bestSeller}
-                      onChange={handleInputChange}
-                      className={inputClass}
-                    >
-                      <option value="no">No</option>
-                      <option value="si">Sí</option>
-                    </select>
                   </div>
                   <div>
                     <label htmlFor="product-bestseller" className={labelClass}>
@@ -679,6 +670,19 @@ export default function AdminProducts() {
                       <option value="no">Normal</option>
                       <option value="si">¡Más Vendido!</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>
+                      <span className="flex items-center gap-1"><Trophy size={12} className="text-amber-500" /> Puntos Bonus</span>
+                    </label>
+                    <input
+                      name="bonusPoints"
+                      type="text"
+                      value={formData.bonusPoints || ""}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="0"
+                    />
                   </div>
                 </div>
                 <div>

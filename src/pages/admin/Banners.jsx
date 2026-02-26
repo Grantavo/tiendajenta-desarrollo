@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 
 import { toast } from "sonner";
-import { db } from "../../firebase/config";
+import { db, storage } from "../../firebase/config";
 import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function Banners() {
   const [loading, setLoading] = useState(true);
@@ -113,20 +114,31 @@ export default function Banners() {
     }
   };
 
-  const handleImageUpload = (id, e) => {
+  const handleImageUpload = async (id, e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 1000000) {
-        toast.warning("Imagen muy pesada (Máx 1MB)");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBanners((prev) =>
-          prev.map((b) => (b.id === id ? { ...b, image: reader.result } : b))
-        );
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (file.size > 5000000) {
+      toast.warning("Imagen muy pesada (Máx 5MB)");
+      return;
+    }
+
+    const toastId = toast.loading("Subiendo imagen...");
+    try {
+      // Ruta única en Firebase Storage: banners/<bannerId>/<timestamp>.<ext>
+      const ext = file.name.split(".").pop();
+      const storageRef = ref(storage, `banners/${id}/${Date.now()}.${ext}`);
+      
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setBanners((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, image: downloadURL } : b))
+      );
+      toast.success("¡Imagen subida con éxito! 📸", { id: toastId });
+    } catch (error) {
+      console.error("Error subiendo imagen:", error);
+      toast.error("No se pudo subir la imagen", { id: toastId });
     }
   };
 

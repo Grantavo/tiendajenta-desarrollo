@@ -14,8 +14,9 @@ import {
 import { toast } from "sonner";
 
 // 2. IMPORTAR FIREBASE
-import { db } from "../../firebase/config";
+import { db, storage } from "../../firebase/config";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function ShopSettings() {
   const [loading, setLoading] = useState(true);
@@ -83,21 +84,28 @@ export default function ShopSettings() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 1000000) {
-        toast.warning("Imagen muy pesada", {
-          description: "Intenta con una imagen menor a 1MB.",
-        });
-        return;
-      }
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (file.size > 3000000) {
+      toast.warning("Imagen muy pesada", {
+        description: "Intenta con una imagen menor a 3MB.",
+      });
+      return;
+    }
+
+    const toastId = toast.loading("Subiendo logo...");
+    try {
+      const ext = file.name.split(".").pop();
+      const storageRef = ref(storage, `logos/shop_logo.${ext}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      setLogoPreview(downloadURL);
+      toast.success("¡Logo actualizado! Guarda los cambios para confirmar.", { id: toastId });
+    } catch (error) {
+      console.error("Error subiendo logo:", error);
+      toast.error("No se pudo subir el logo", { id: toastId });
     }
   };
 

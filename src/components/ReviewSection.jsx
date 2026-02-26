@@ -13,6 +13,10 @@ import {
   addDoc,
   getDocs,
   serverTimestamp,
+  doc,
+  updateDoc,
+  increment,
+  getDoc,
 } from "firebase/firestore";
 
 // Hook para obtener el usuario
@@ -81,6 +85,27 @@ export default function ReviewSection({ productId, productName }) {
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   // Verificar si compró el producto
   const [hasPurchased, setHasPurchased] = useState(false);
+
+  // Config puntos
+  const [loyaltyConfig, setLoyaltyConfig] = useState({
+    enabled: true,
+    pointsPerReview: 5,
+  });
+
+  // 0. Cargar Configuración de Puntos
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, "settings", "loyalty"));
+        if (docSnap.exists()) {
+          setLoyaltyConfig(docSnap.data());
+        }
+      } catch (error) {
+        console.error("Error al cargar config puntos:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // 1. Cargar reseñas en tiempo real
   useEffect(() => {
@@ -175,6 +200,26 @@ export default function ReviewSection({ productId, productName }) {
       });
 
       toast.success("¡Reseña publicada! Gracias por tu opinión.");
+
+      // +5 puntos por reseña verificada
+      // Puntos por reseña verificada (DINÁMICO)
+      if (hasPurchased && loyaltyConfig.enableReview && loyaltyConfig.pointsPerReview > 0) {
+        try {
+          const pointsToAward = Number(loyaltyConfig.pointsPerReview);
+          const clientRef = doc(db, "clients", user.id);
+          await updateDoc(clientRef, { points: increment(pointsToAward) });
+          await addDoc(collection(db, "clients", user.id, "pointsHistory"), {
+            points: pointsToAward,
+            description: `Reseña en: ${productName || "Producto"}`,
+            type: "review",
+            createdAt: serverTimestamp(),
+          });
+          toast.success(`🏆 +${pointsToAward} puntos por tu reseña verificada`);
+        } catch (e) {
+          console.error("Error sumando puntos por reseña:", e);
+        }
+      }
+
       setRating(0);
       setComment("");
       setShowForm(false);
@@ -302,9 +347,17 @@ export default function ReviewSection({ productId, productName }) {
 
           {/* BADGE COMPRA VERIFICADA */}
           {hasPurchased && (
-            <div className="flex items-center gap-2 text-xs text-green-600 font-bold bg-green-50 px-3 py-2 rounded-lg mb-4 w-fit">
-              <CheckCircle size={14} />
-              Tu reseña tendrá el badge de "Compra Verificada"
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex items-center gap-2 text-xs text-green-600 font-bold bg-green-50 px-3 py-2 rounded-lg w-fit">
+                <CheckCircle size={14} />
+                Tu reseña tendrá el badge de "Compra Verificada"
+              </div>
+              {loyaltyConfig.enableReview && loyaltyConfig.pointsPerReview > 0 && (
+                <div className="flex items-center gap-2 text-xs text-amber-600 font-bold bg-amber-50 px-3 py-2 rounded-lg w-fit animate-pulse">
+                  <Trophy size={14} />
+                  ¡Ganarás +{loyaltyConfig.pointsPerReview} puntos con esta reseña!
+                </div>
+              )}
             </div>
           )}
 

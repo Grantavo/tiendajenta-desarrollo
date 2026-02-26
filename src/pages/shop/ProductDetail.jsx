@@ -8,6 +8,7 @@ import {
   CheckCircle,
   Minus,
   Plus,
+  Trophy,
 } from "lucide-react";
 
 import { db } from "../../firebase/config";
@@ -24,6 +25,12 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+
+  // Configuración de Puntos
+  const [loyaltyConfig, setLoyaltyConfig] = useState({
+    enabled: true,
+    pointsPer1000: 1,
+  });
 
   const [shopPhone] = useState(() => {
     try {
@@ -55,7 +62,22 @@ export default function ProductDetail() {
       }
     };
 
+
     if (id) fetchProduct();
+
+    // Cargar Config Puntos
+    const fetchLoyalty = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, "settings", "loyalty"));
+        if (docSnap.exists()) {
+          setLoyaltyConfig(docSnap.data());
+        }
+      } catch (e) {
+        console.error("Error cargando config puntos");
+      }
+    };
+    fetchLoyalty();
+
     window.scrollTo(0, 0);
   }, [id]);
 
@@ -251,6 +273,23 @@ export default function ProductDetail() {
                 </span>
               )}
             </div>
+
+            {/* BADGE DE PUNTOS */}
+            {loyaltyConfig.enablePurchase && (price > 0 || (product.bonusPoints || 0) > 0) && (
+              <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in zoom-in duration-300">
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                  <Trophy size={13} />
+                  <span>
+                    Gana aprox. {Math.floor((price / 1000) * (loyaltyConfig.pointsPer1000 || 1)) + (Number(product.bonusPoints) || 0)} puntos
+                  </span>
+                </div>
+                {(product.bonusPoints || 0) > 0 && (
+                  <div className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full animate-pulse">
+                    ¡Incluye +{product.bonusPoints} bonus!
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="h-px bg-slate-100 w-full mb-6"></div>
 

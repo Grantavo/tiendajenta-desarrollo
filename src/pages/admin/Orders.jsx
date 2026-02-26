@@ -13,6 +13,7 @@ import {
   Edit,
   Minus,
   StickyNote,
+  Trophy,
 } from "lucide-react";
 
 // 1. IMPORTAR SONNER (Para las alertas bonitas)
@@ -31,6 +32,8 @@ import {
   increment,
   query,
   where,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 
 export default function Orders() {
@@ -44,6 +47,11 @@ export default function Orders() {
     name: "MI TIENDA",
     nit: "123456789",
     footer: "¡Gracias por su compra!",
+  });
+
+  const [loyaltyConfig, setLoyaltyConfig] = useState({
+    enabled: true,
+    pointsPer1000: 1, // Default
   });
 
   // Modales
@@ -86,6 +94,12 @@ export default function Orders() {
         const ticketSnap = await getDoc(doc(db, "settings", "ticket"));
         if (ticketSnap.exists()) {
           setTicketConfig(ticketSnap.data());
+        }
+
+        // D. Cargar Configuración de Puntos
+        const loyaltySnap = await getDoc(doc(db, "settings", "loyalty"));
+        if (loyaltySnap.exists()) {
+          setLoyaltyConfig(loyaltySnap.data());
         }
       } catch (error) {
         console.error("Error general cargando datos:", error);
@@ -208,6 +222,57 @@ export default function Orders() {
           String(o.id) === String(orderId) ? { ...o, status: newStatus } : o
         )
       );
+
+      // --- ACUMULACIÓN DE PUNTOS AL ENTREGAR ---
+      // Verificamos si el sistema está activo globalmente
+      if (newStatus === "Entregado" && order.clientId && loyaltyConfig.enablePurchase) {
+        try {
+          const orderTotal = Number(String(order.total || "0").replace(/[.,]/g, "")) || 0;
+          
+          // Usamos la configuración dinámica: puntos por cada 1000
+          // Ejemplo: si pointsPer1000 es 2, y compra 1000, gana 2 puntos.
+          // (Total / 1000) * factor
+          const factor = loyaltyConfig.pointsPer1000 || 1;
+          const basePoints = Math.floor((orderTotal / 1000) * factor);
+
+          let bonusTotal = 0;
+          if (order.items && Array.isArray(order.items)) {
+            for (const item of order.items) {
+              const prod = products.find((p) => String(p.id) === String(item.id));
+              if (prod && prod.bonusPoints) {
+                bonusTotal += Number(prod.bonusPoints) * (Number(item.qty) || 1);
+              }
+            }
+          }
+
+          const totalPoints = basePoints + bonusTotal;
+
+          if (totalPoints > 0) {
+            const clientRef = doc(db, "clients", order.clientId);
+            await updateDoc(clientRef, {
+              points: increment(totalPoints),
+            });
+
+            // Registrar en historial
+            await addDoc(collection(db, "clients", order.clientId, "pointsHistory"), {
+              points: totalPoints,
+              basePoints,
+              bonusPoints: bonusTotal,
+              orderId: String(orderId),
+              description: `Pedido #${orderId} entregado`,
+              type: "earn",
+              createdAt: serverTimestamp(),
+            });
+
+            toast.success(`🏆 +${totalPoints} puntos acreditados al cliente`, {
+              description: `Base: ${basePoints} | Bonus: ${bonusTotal}`,
+            });
+          }
+        } catch (pointsError) {
+          console.error("Error acreditando puntos:", pointsError);
+          // No bloquear el flujo si falla la acreditación
+        }
+      }
     } catch (error) {
       console.error("Error al mover estado:", error);
       toast.error("No se pudo cambiar el estado");

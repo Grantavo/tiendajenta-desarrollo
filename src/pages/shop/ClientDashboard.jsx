@@ -10,6 +10,7 @@ import {
   ArrowUpCircle,
   TrendingUp,
   Star,
+  Trophy,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ import EditProfileModal from "../../components/EditProfileModal";
 import MyOrdersModal from "../../components/MyOrdersModal";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 import MyReviewsModal from "../../components/MyReviewsModal";
+import MyPointsModal from "../../components/MyPointsModal";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
@@ -61,6 +63,7 @@ export default function ClientDashboard() {
 
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
+  const [isPointsOpen, setIsPointsOpen] = useState(false);
 
   // 1. INICIALIZACIÓN DE USUARIO
   const [user, setUser] = useState(() => {
@@ -168,6 +171,14 @@ export default function ClientDashboard() {
       color: "text-indigo-600",
       bg: "bg-indigo-50",
       action: () => navigate("/inversiones"),
+    },
+    {
+      title: "Mis Puntos",
+      desc: `${(user.points || 0).toLocaleString()} puntos acumulados`,
+      icon: <Trophy size={32} />,
+      color: "text-yellow-600",
+      bg: "bg-yellow-50",
+      action: () => setIsPointsOpen(true),
     },
     {
       title: "Seguridad",
@@ -294,6 +305,13 @@ export default function ClientDashboard() {
         isOpen={isReviewsOpen}
         onClose={() => setIsReviewsOpen(false)}
         userId={user?.id}
+      />
+
+      <MyPointsModal
+        isOpen={isPointsOpen}
+        onClose={() => setIsPointsOpen(false)}
+        userId={user?.id}
+        currentPoints={user.points || 0}
       />
     </div>
   );

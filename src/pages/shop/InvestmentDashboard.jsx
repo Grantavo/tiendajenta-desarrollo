@@ -135,9 +135,33 @@ export default function InvestmentDashboard() {
 
   const [totalAssetsValue, setTotalAssetsValue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [marketOpen, setMarketOpen] = useState(false);
   
-  // ESTADO: Oportunidades visualizadas (GRJN + Random S&P 500)
+  // OPORTUNIDADES DE MERCADO
   const [marketOpportunities, setMarketOpportunities] = useState([]);
+
+  // Calcula si el mercado NYSE está abierto ahora mismo
+  const isMarketOpen = () => {
+    // Usamos la zona horaria de Nueva York para manejar DST automáticamente
+    const now = new Date();
+    const nyTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric', minute: 'numeric', weekday: 'short',
+      hour12: false,
+    }).formatToParts(now);
+
+    const get = (type) => parseInt(nyTime.find(p => p.type === type)?.value || '0');
+    const weekday = nyTime.find(p => p.type === 'weekday')?.value; // 'Mon', 'Tue', etc.
+    const hour = get('hour');
+    const minute = get('minute');
+    const totalMinutes = hour * 60 + minute;
+
+    const isWeekday = !['Sat', 'Sun'].includes(weekday);
+    const openMinutes  = 9 * 60 + 30;  // 9:30 AM ET
+    const closeMinutes = 16 * 60;       // 4:00 PM ET
+
+    return isWeekday && totalMinutes >= openMinutes && totalMinutes < closeMinutes;
+  };
 
   // EFECTO: Seleccionar acciones aleatorias al montar
   useEffect(() => {
@@ -178,15 +202,22 @@ export default function InvestmentDashboard() {
   const [simAmount, setSimAmount] = useState(1000000); // 1M por defecto
   const [simMonths, setSimMonths] = useState(12); // 1 año por defecto
 
-  // EFECTO: Simular fluctuación del mercado en vivo (Rango 1.5% - 1.7%)
+  // EFECTO: Actualizar estado del mercado cada minuto
   useEffect(() => {
-    const interval = setInterval(() => {
-        // Generar tasa aleatoria entre 0.0150 y 0.0170
-        const randomRate = 0.0150 + Math.random() * (0.0170 - 0.0150);
-        setProjectedRate(randomRate);
-    }, 5000); // Actualiza cada 5 segundos
+    setMarketOpen(isMarketOpen()); // Verificación inicial
+    const interval = setInterval(() => setMarketOpen(isMarketOpen()), 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // EFECTO: Fluctuación del mercado en vivo - SOLO cuando el mercado está abierto
+  useEffect(() => {
+    if (!marketOpen) return; // No fluctuar fuera de horario
+    const interval = setInterval(() => {
+      const randomRate = 0.0150 + Math.random() * (0.0170 - 0.0150);
+      setProjectedRate(randomRate);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [marketOpen]);
 
   // 1. Obtener Usuario
   useEffect(() => {
@@ -274,8 +305,8 @@ export default function InvestmentDashboard() {
               </div>
             </div>
             <p className="text-sm text-slate-400 mt-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              Mercado Abierto • Actualizado: {new Date().toLocaleTimeString()}
+              <span className={`w-2 h-2 rounded-full ${marketOpen ? 'bg-green-500 animate-pulse' : 'bg-red-400'}`}></span>
+              {marketOpen ? 'Mercado Abierto' : 'Mercado Cerrado'} • Actualizado: {new Date().toLocaleTimeString()}
             </p>
           </div>
 
@@ -306,7 +337,7 @@ export default function InvestmentDashboard() {
           </div>
         </div>
       {/* 1.5 SECCIÓN SIMULADOR (NUEVO) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
         {/* TARJETA DE SIMULACIÓN */}
         {/* TARJETA DE SIMULACIÓN */}
         {/* TARJETA DE SIMULACIÓN */}

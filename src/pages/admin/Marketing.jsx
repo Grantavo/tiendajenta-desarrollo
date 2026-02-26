@@ -9,7 +9,11 @@ import {
   Send,
   CheckCircle,
   Clock,
-  Calendar
+  Calendar,
+  Trophy,
+  Save,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 
 // 1. IMPORTAR SONNER
@@ -24,6 +28,8 @@ import {
   deleteDoc,
   updateDoc,
   doc,
+  setDoc,
+  getDoc,
 } from "firebase/firestore";
 
 export default function Marketing() {
@@ -45,6 +51,37 @@ export default function Marketing() {
   const generatedLink = `https://wa.me${phonePart}?text=${encodeURIComponent(
     waMessage
   )}`;
+
+  // Estado Puntos de Fidelización
+  const [loyaltyConfig, setLoyaltyConfig] = useState({
+    enablePurchase: true,
+    enableReview: true,
+    pointsPer1000: 1,
+    pointsPerReview: 5,
+  });
+
+  // --- 2. CARGAR CANTIDADES Y CONFIG ---
+  useEffect(() => {
+    const fetchSettings = async () => {
+       try {
+          const docSnap = await getDoc(doc(db, "settings", "loyalty"));
+          if (docSnap.exists()) {
+             const data = docSnap.data();
+             // Migración/Compatibilidad: Si existe 'enabled' antiguo, lo usamos para inicializar los nuevos
+             const isEnabledOld = data.enabled !== undefined ? data.enabled : true;
+             
+             setLoyaltyConfig({
+                ...data,
+                enablePurchase: data.enablePurchase !== undefined ? data.enablePurchase : isEnabledOld,
+                enableReview: data.enableReview !== undefined ? data.enableReview : isEnabledOld,
+             });
+          }
+       } catch (error) {
+          console.error("Error cargando config puntos:", error);
+       }
+    };
+    fetchSettings();
+  }, []);
 
   // --- 2. CARGAR CUPONES DESDE FIREBASE ---
   const fetchCoupons = async () => {
@@ -127,6 +164,25 @@ export default function Marketing() {
     }
   };
 
+  const saveLoyaltyConfig = async (e) => {
+    e.preventDefault();
+    try {
+       await setDoc(doc(db, "settings", "loyalty"), loyaltyConfig);
+       toast.success("Configuración de puntos guardada 🏆");
+    } catch (error) {
+       console.error("Error guardando config puntos:", error);
+       toast.error("Error al guardar configuración");
+    }
+  };
+
+  const togglePurchase = () => {
+    setLoyaltyConfig(prev => ({ ...prev, enablePurchase: !prev.enablePurchase }));
+  };
+
+  const toggleReview = () => {
+    setLoyaltyConfig(prev => ({ ...prev, enableReview: !prev.enableReview }));
+  };
+
   // --- 4. UTILIDADES ---
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -168,6 +224,16 @@ export default function Marketing() {
             }`}
           >
             <MessageCircle size={18} /> WhatsApp Link
+          </button>
+          <button
+            onClick={() => setActiveTab("loyalty")}
+            className={`w-full md:w-auto flex justify-center md:justify-start items-center gap-2 px-6 py-3 md:py-2.5 rounded-lg text-sm font-bold transition ${
+              activeTab === "loyalty"
+                ? "bg-amber-100 text-amber-700 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Trophy size={18} /> Puntos
           </button>
         </div>
       </div>
@@ -442,6 +508,102 @@ export default function Marketing() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- SECCIÓN 3: PUNTOS DE FIDELIZACIÓN --- */}
+      {activeTab === "loyalty" && (
+        <div className="animate-in fade-in slide-in-from-bottom-4">
+           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
+               <div className="flex justify-between items-center mb-8">
+                  <div>
+                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <Trophy className="text-amber-500" /> Configuración de Fidelización
+                     </h3>
+                     <p className="text-slate-500 text-sm mt-1">Controla independientemente los puntos por compras y reseñas.</p>
+                  </div>
+               </div>
+
+              <form onSubmit={saveLoyaltyConfig} className="space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className={`p-4 rounded-xl border-2 transition-all ${loyaltyConfig.enablePurchase ? "border-amber-100 bg-amber-50/30" : "border-slate-100 bg-slate-50 opacity-50"}`}>
+                       <div className="flex justify-between items-start mb-3">
+                          <label className="text-xs font-bold text-slate-500 uppercase">
+                             Puntos por Compra ($)
+                          </label>
+                          <button 
+                             type="button"
+                             onClick={togglePurchase}
+                             className={`text-xs font-bold px-2 py-1 rounded transition ${loyaltyConfig.enablePurchase ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"}`}
+                          >
+                             {loyaltyConfig.enablePurchase ? "ACTIVO" : "PAUSADO"}
+                          </button>
+                       </div>
+                       
+                       <div className="flex items-center gap-3">
+                          <input 
+                             type="number" 
+                             min="0"
+                             step="0.1"
+                             disabled={!loyaltyConfig.enablePurchase}
+                             value={loyaltyConfig.pointsPer1000}
+                             onChange={(e) => {
+                                const val = e.target.value;
+                                setLoyaltyConfig({...loyaltyConfig, pointsPer1000: val === "" ? "" : Number(val)})
+                             }}
+                             className="w-24 p-2 text-center text-lg font-black text-slate-800 border-b-2 border-slate-200 focus:border-amber-500 outline-none bg-transparent"
+                          />
+                          <span className="text-sm font-medium text-slate-600">puntos por cada $1,000</span>
+                       </div>
+                       <p className="text-xs text-slate-400 mt-2">
+                          Ej: Si pones <strong>1</strong>, una compra de $100,000 da <strong>100</strong> puntos.
+                       </p>
+                    </div>
+
+                    <div className={`p-4 rounded-xl border-2 transition-all ${loyaltyConfig.enableReview ? "border-amber-100 bg-amber-50/30" : "border-slate-100 bg-slate-50 opacity-50"}`}>
+                       <div className="flex justify-between items-start mb-3">
+                          <label className="text-xs font-bold text-slate-500 uppercase">
+                             Puntos por Reseña
+                          </label>
+                          <button 
+                             type="button"
+                             onClick={toggleReview}
+                             className={`text-xs font-bold px-2 py-1 rounded transition ${loyaltyConfig.enableReview ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"}`}
+                          >
+                             {loyaltyConfig.enableReview ? "ACTIVO" : "PAUSADO"}
+                          </button>
+                       </div>
+
+                       <div className="flex items-center gap-3">
+                          <input 
+                             type="number" 
+                             min="0"
+                             disabled={!loyaltyConfig.enableReview}
+                             value={loyaltyConfig.pointsPerReview}
+                             onChange={(e) => {
+                                const val = e.target.value;
+                                setLoyaltyConfig({...loyaltyConfig, pointsPerReview: val === "" ? "" : Number(val)})
+                             }}
+                             className="w-24 p-2 text-center text-lg font-black text-slate-800 border-b-2 border-slate-200 focus:border-amber-500 outline-none bg-transparent"
+                          />
+                          <span className="text-sm font-medium text-slate-600">puntos fijos</span>
+                       </div>
+                       <p className="text-xs text-slate-400 mt-2">
+                          Se otorgan solo si la reseña es de una <strong>compra verificada</strong>.
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="pt-4 border-t border-slate-100 flex justify-end">
+                    <button 
+                       type="submit"
+                       className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-black transition shadow-lg flex items-center gap-2"
+                    >
+                       <Save size={18} /> Guardar Configuración
+                    </button>
+                 </div>
+              </form>
+           </div>
         </div>
       )}
 

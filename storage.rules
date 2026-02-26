@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Banners: solo usuarios autenticados pueden escribir, todos pueden leer
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Logo de la tienda: solo usuarios autenticados pueden escribir, todos pueden leer
+    match /logos/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 3 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Demás archivos: solo autenticados pueden leer/escribir
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

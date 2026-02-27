@@ -4,13 +4,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- FUNCIONES AUXILIARES ---
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Admin = existe en la colección "users" (solo cuentas de staff/admin)
     function isAdmin() {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
@@ -21,13 +22,20 @@ service cloud.firestore {
     // --- REGLAS POR COLECCIÓN ---
 
     // 1. PRODUCTOS
+    // - Lectura pública
+    // - Crear/eliminar: solo admin
+    // - Actualizar: admin puede todo | usuario autenticado SOLO puede REDUCIR stock
+    //   (necesario para el proceso de compra). No puede tocar precio, título, etc.
     match /products/{productId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isAuthenticated();
+      allow update: if isAdmin() ||
+        (isAuthenticated() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+         request.resource.data.stock < resource.data.stock);
     }
 
-    // 2. CATEGORÍAS, BANNERS, CONFIG
+    // 2. CATEGORÍAS, BANNERS, CONFIG — solo admin
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -45,7 +53,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /coupons/{couponId} {
-      allow read: if true; 
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -55,28 +63,43 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /roles/{roleId} {
-      allow read: if isAuthenticated(); 
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     // 4. CLIENTES
+    // - El dueño puede leer/crear su perfil
+    // - Para actualizar: puede editar su perfil pero NO puede tocar campos
+    //   financieros (walletBalance, loyaltyPoints). Solo admins pueden hacerlo.
     match /clients/{clientId} {
-      allow read, write: if isOwner(clientId) || isAdmin();
+      allow read: if isOwner(clientId) || isAdmin();
+      allow create: if isOwner(clientId) || isAdmin();
+      allow update: if isAdmin() ||
+        (isOwner(clientId) &&
+         !request.resource.data.diff(resource.data)
+           .affectedKeys()
+           .hasAny(['walletBalance', 'wallet', 'balance', 'loyaltyPoints', 'points']));
+      allow delete: if isAdmin();
     }
 
     // 5. PEDIDOS
+    // - Crear: cualquier usuario autenticado
+    // - Leer: el dueño del pedido o admin
+    // - Actualizar/eliminar: solo admin
     match /orders/{orderId} {
       allow create: if isAuthenticated();
-      allow read: if isAuthenticated() && (resource.data.clientId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() &&
+        (resource.data.clientId == request.auth.uid || isAdmin());
       allow update, delete: if isAdmin();
     }
 
-    // 6. CARRITOS
+    // 6. CARRITOS — solo el dueño (el cartId debe ser el UID del usuario)
     match /carts/{cartId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isOwner(cartId) || isAdmin();
     }
 
-    // 7. CONTADORES (IDs secuenciales)
+    // 7. CONTADORES (IDs secuenciales de pedidos)
+    // Necesitan write de usuarios autenticados para el checkout
     match /counters/{counterId} {
       allow read: if true;
       allow create, update: if isAuthenticated();

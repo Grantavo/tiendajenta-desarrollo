@@ -42,18 +42,7 @@ const SP500_TICKERS = [
   { s: 'DIS', d: 'disney.com' }, { s: 'XOM', d: 'exxonmobil.com' }, { s: 'CVX', d: 'chevron.com' }
 ];
 
-// Oportunidad fija (La moneda de la plataforma)
-const GRJN_ASSET = { 
-  symbol: 'GRJN', 
-  name: 'Grupo Jenta', 
-  type: 'NASDAQ', 
-  color: 'text-indigo-900', 
-  bg: 'bg-white', 
-  isLogo: true, 
-  logo: '/img/logo tienda jenta.svg', 
-  price: 0.12, 
-  simulatedChange: 1.42 
-};
+
 
 // Sub-componente movido afuera para evitar re-renderizados innecesarios
 const StockRow = ({ asset, isHoldings }) => {
@@ -165,10 +154,7 @@ export default function InvestmentDashboard() {
 
   // EFECTO: Seleccionar acciones aleatorias al montar
   useEffect(() => {
-    // 1. Siempre incluir GRJN
-    const selected = [GRJN_ASSET];
-
-    // 2. Seleccionar 5 aleatorias del pool S&P 500
+    // Seleccionar 6 aleatorias del pool S&P 500
     const shuffled = [...SP500_TICKERS].sort(() => 0.5 - Math.random());
     
     // Paleta de colores vibrantes para avatares (fallback si falla logo)
@@ -182,8 +168,8 @@ export default function InvestmentDashboard() {
         { bg: 'bg-indigo-100', text: 'text-indigo-700' },
     ];
 
-    const randomPicks = shuffled.slice(0, 5).map((item, index) => {
-        const theme = colors[index % colors.length]; // Asignar color cíclico
+    const randomPicks = shuffled.slice(0, 6).map((item, index) => {
+        const theme = colors[index % colors.length];
         return {
             symbol: item.s,
             name: item.s, 
@@ -195,7 +181,7 @@ export default function InvestmentDashboard() {
         };
     });
 
-    setMarketOpportunities([...selected, ...randomPicks]);
+    setMarketOpportunities(randomPicks);
   }, []);
 
   // ESTADO: Simulador

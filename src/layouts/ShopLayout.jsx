@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import useIdleTimer from "../hooks/useIdleTimer";
 import { useCallback } from "react";
+import BoldPaymentButton from "../components/BoldPaymentButton";
 
 export default function ShopLayout() {
   const navigate = useNavigate();
@@ -58,6 +59,7 @@ export default function ShopLayout() {
   // Estado para el Método de Pago
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [boldPendingOrder, setBoldPendingOrder] = useState(null); // {orderId, amount, apiKey, secretKey}
 
   // Estado para el Modal de Login (Controlado localmente o via evento)
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -68,11 +70,15 @@ export default function ShopLayout() {
   useEffect(() => {
     const syncSettings = async () => {
       try {
-        // 1. Settings (Logo, Nombre, Teléfono)
-        const q = await getDocs(collection(db, "settings"));
-        if (!q.empty) {
-          const settingsData = q.docs[0].data();
+        // 1. Settings (Logo, Nombre, Teléfono) - Usamos el doc 'shop' directamente
+        const shopDoc = await getDoc(doc(db, "settings", "shop"));
+        if (shopDoc.exists()) {
+          const settingsData = shopDoc.data();
           localStorage.setItem("shopSettings", JSON.stringify(settingsData));
+          // Guardar logo por separado para que el spinner lo encuentre rápido
+          if (settingsData.logo) {
+            localStorage.setItem("shopLogo", settingsData.logo);
+          }
           window.dispatchEvent(new Event("storage"));
         }
 
@@ -404,41 +410,80 @@ export default function ShopLayout() {
     // PAGO CON BOLD
     if (selectedPayment?.type === "Bold") {
       try {
-        // Verificar si Bold está configurado
         const boldConfigRef = doc(db, "settings", "bold");
         const boldConfigSnap = await getDoc(boldConfigRef);
-        
+
         if (!boldConfigSnap.exists() || !boldConfigSnap.data().enabled) {
           toast.error("Bold no está configurado. Contacta al administrador.");
           return;
         }
 
         const boldConfig = boldConfigSnap.data();
-        
-        // TODO: Implementar integración con API de Bold cuando recibas las llaves
-        // Por ahora, mostrar mensaje informativo
-        toast.info("Redirigiendo a Bold...", {
-          description: "La integración con Bold se completará cuando recibas las llaves API."
+
+        // Calcular total con descuento
+        const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+        const shipping = JSON.parse(localStorage.getItem("shopShippingCost") || "0");
+        const discount = appliedDiscount
+          ? appliedDiscount.type === "percentage"
+            ? (subtotal * appliedDiscount.value) / 100
+            : appliedDiscount.value
+          : 0;
+        const totalAmount = Math.round(subtotal + shipping - discount);
+
+        // Crear orden en Firestore con estado pendiente
+        const { nextId } = await runTransaction(db, async (tx) => {
+          const counterRef = doc(db, "counters", "orders");
+          const counterSnap = await tx.get(counterRef);
+          const currentCount = counterSnap.exists() ? counterSnap.data().count : 0;
+          const nextId = currentCount + 1;
+          tx.set(counterRef, { count: nextId });
+          return { nextId };
         });
-        
-        // Placeholder para futura integración:
-        // 1. Crear orden en Bold
-        // 2. Obtener URL de pago
-        // 3. Redirigir al usuario
-        // 4. Webhook para confirmar pago
-        
-        console.log("Bold Config:", {
-          mode: boldConfig.mode,
-          enabled: boldConfig.enabled,
-          // No mostrar API keys en console por seguridad
+
+        const newOrderId = String(nextId).padStart(4, "0");
+        const boldOrderId = `JENTA-${newOrderId}-${Date.now()}`;
+        const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");
+
+        const orderData = {
+          orderId: newOrderId,
+          boldOrderId,
+          clientId: session.id || "guest",
+          clientName: session.name || session.email || "Cliente",
+          clientEmail: session.email || "",
+          items: cart,
+          subtotal,
+          shipping,
+          discount,
+          total: totalAmount,
+          status: "Pendiente Bold",
+          paymentMethod: "Bold",
+          createdAt: serverTimestamp(),
+        };
+
+        await runTransaction(db, async (tx) => {
+          tx.set(doc(db, "orders", newOrderId), orderData);
         });
-        
-        return;
+
+        // Redirect URL al thank-you con el orderId
+        const redirectUrl = `${window.location.origin}/thank-you?bold-order-id-jenta=${newOrderId}`;
+
+        setBoldPendingOrder({
+          orderId: boldOrderId,
+          amount: totalAmount,
+          apiKey: boldConfig.apiKey,
+          secretKey: boldConfig.secretKey,
+          redirectUrl,
+          orderFirestoreId: newOrderId,
+        });
+
+        toast.info("Selecciona Pagar con Bold para completar el pago.", {
+          description: "Se abrirá la pasarela de pago de Bold.",
+        });
       } catch (error) {
-        console.error("Error con Bold:", error);
-        toast.error("Error al procesar pago con Bold");
-        return;
+        console.error("Error preparando pago Bold:", error);
+        toast.error("Error al preparar el pago con Bold");
       }
+      return;
     }
 
     // PAGO POR WHATSAPP
@@ -802,6 +847,19 @@ export default function ShopLayout() {
                     </p>
                   </div>
 
+                  {/* BOTÓN BOLD: aparece cuando ya se creó la orden pendiente */}
+                  {boldPendingOrder && selectedPayment?.id === "bold" && (
+                    <div className="mt-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                      <p className="text-xs text-indigo-700 font-bold mb-1">✅ Pedido creado. Ahora completa el pago:</p>
+                      <BoldPaymentButton
+                        orderId={boldPendingOrder.orderId}
+                        amount={boldPendingOrder.amount}
+                        apiKey={boldPendingOrder.apiKey}
+                        secretKey={boldPendingOrder.secretKey}
+                        redirectUrl={boldPendingOrder.redirectUrl}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -120,6 +120,12 @@ export default function Sidebar({ isOpen, onClose }) {
           },
           {
             id: "ajustes",
+            path: "/admin/bold",
+            label: "Bold (Pasarela)",
+            icon: <CreditCard size={20} />,
+          },
+          {
+            id: "ajustes",
             path: "/admin/envios",
             label: "Envíos",
             icon: <Truck size={20} />,

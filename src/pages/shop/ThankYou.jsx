@@ -1,32 +1,71 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle, ShoppingBag, Home, Loader2 } from "lucide-react";
+import { CheckCircle, ShoppingBag, Home, Loader2, XCircle } from "lucide-react";
+import { db } from "../../firebase/config";
+import { doc, updateDoc } from "firebase/firestore";
 
 export default function ThankYou() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 1. Intentamos leer los datos. Si no existen, usamos valores por defecto para no romper la página.
+  // Leer parámetros de la URL (vienen de Bold en el redirect)
+  const params = new URLSearchParams(location.search);
+  const boldStatus = params.get("bold-order-status");       // "approved" | "declined" | etc.
+  const boldJentaOrderId = params.get("bold-order-id-jenta"); // nuestro ID interno
+  const boldTxId = params.get("bold-tx-id");                // ID de transacción Bold
+
+  // Datos de checkout normal (vienen via navigate state)
   const state = location.state || {};
   const { orderId, total, items, paymentMethod } = state;
 
-  // Estado para controlar la redirección segura
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [boldProcessing, setBoldProcessing] = useState(!!boldStatus);
+  const [boldError, setBoldError] = useState(false);
 
+  // Manejar resultado del pago Bold
   useEffect(() => {
-    // Si entran a esta página sin datos (ej: recargando el navegador),
-    // esperamos 3 segundos y los mandamos al home, pero MOSTRANDO algo visual.
-    if (!orderId) {
+    if (!boldStatus || !boldJentaOrderId) return;
+
+    const handleBoldResult = async () => {
+      try {
+        const orderRef = doc(db, "orders", boldJentaOrderId);
+        if (boldStatus === "approved") {
+          await updateDoc(orderRef, {
+            status: "Procesando",
+            boldTxId: boldTxId || "",
+            boldStatus: "approved",
+            paidAt: new Date(),
+          });
+          setBoldProcessing(false);
+        } else {
+          await updateDoc(orderRef, {
+            status: "Cancelado",
+            boldStatus: boldStatus,
+          });
+          setBoldError(true);
+          setBoldProcessing(false);
+        }
+      } catch (err) {
+        console.error("Error actualizando orden Bold:", err);
+        setBoldProcessing(false);
+      }
+    };
+
+    handleBoldResult();
+  }, [boldStatus, boldJentaOrderId, boldTxId]);
+
+  // Redirect si no hay datos ni params Bold
+  useEffect(() => {
+    if (!orderId && !boldStatus) {
       const timer = setTimeout(() => {
         setIsRedirecting(true);
         navigate("/");
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [orderId, navigate]);
+  }, [orderId, boldStatus, navigate]);
 
-  // Si se está redirigiendo por falta de datos, mostramos un spinner
-  if (!orderId && isRedirecting) {
+  if (!orderId && !boldStatus && isRedirecting) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
         <Loader2 className="animate-spin text-green-600" size={40} />
@@ -35,8 +74,49 @@ export default function ThankYou() {
     );
   }
 
-  // Verificar si es un método que requiere verificación (WhatsApp, Transferencia)
+  // Spinner mientras se confirma el pago Bold
+  if (boldProcessing) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+        <Loader2 className="animate-spin text-indigo-600" size={40} />
+        <p className="text-slate-600 font-semibold">Confirmando tu pago...</p>
+        <p className="text-slate-400 text-sm">Un momento por favor.</p>
+      </div>
+    );
+  }
+
+  // Pago Bold rechazado
+  if (boldError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white max-w-md w-full rounded-3xl shadow-xl overflow-hidden animate-in zoom-in duration-300">
+          <div className="bg-red-500 p-8 text-center">
+            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <XCircle size={40} className="text-red-500" />
+            </div>
+            <h1 className="text-3xl font-black text-white mb-2">Pago no completado</h1>
+            <p className="text-red-100 font-medium">El pago con Bold fue rechazado o cancelado.</p>
+          </div>
+          <div className="p-8 space-y-3">
+            <p className="text-sm text-slate-500 text-center mb-4">
+              Tu pedido quedó cancelado. Puedes intentar de nuevo con otro método de pago.
+            </p>
+            <button
+              onClick={() => navigate("/")}
+              className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold hover:bg-slate-900 transition flex items-center justify-center gap-2"
+            >
+              <Home size={18} /> Volver a la Tienda
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Éxito (pago normal o Bold aprobado)
+  const displayOrderId = boldJentaOrderId || orderId;
   const needsVerification = paymentMethod === "WhatsApp" || paymentMethod === "Transferencia";
+  const isBoldSuccess = boldStatus === "approved";
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -48,34 +128,29 @@ export default function ThankYou() {
           </div>
           <h1 className="text-3xl font-black text-white mb-2">¡Gracias!</h1>
           <p className="text-green-100 font-medium">
-            Tu pedido ha sido recibido.
+            {isBoldSuccess ? "¡Pago confirmado con Bold! 🎉" : "Tu pedido ha sido recibido."}
           </p>
         </div>
 
-        {/* Detalles del Pedido */}
         <div className="p-8">
-          {/* Si hay ID, lo mostramos. Si no, mostramos mensaje genérico */}
-          {orderId ? (
+          {displayOrderId ? (
             <div className="text-center mb-8">
               <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">
                 Número de Pedido
               </p>
               <p className="text-4xl font-black text-slate-800 tracking-tighter">
-                {orderId}
+                #{displayOrderId}
               </p>
+              {boldTxId && (
+                <p className="text-xs text-slate-400 mt-2">TX Bold: {boldTxId}</p>
+              )}
             </div>
           ) : (
             <div className="text-center mb-8 bg-yellow-50 p-4 rounded-xl border border-yellow-100">
-              <p className="text-slate-600 text-sm">
-                Tu pedido se procesó correctamente, pero no pudimos cargar el
-                resumen aquí.
-                <br />
-                Revisa tu historial.
-              </p>
+              <p className="text-slate-600 text-sm">Tu pedido se procesó correctamente. Revisa tu historial.</p>
             </div>
           )}
 
-          {/* Mensaje de Verificación para Transferencias */}
           {needsVerification && (
             <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 items-start">
               <div className="bg-blue-100 p-2 rounded-lg text-blue-600 shrink-0">
@@ -84,13 +159,12 @@ export default function ThankYou() {
               <div>
                 <p className="text-sm font-bold text-blue-800">Verificación Pendiente</p>
                 <p className="text-xs text-blue-600 mt-1 leading-relaxed">
-                  Tu pedido se procesará profesionalmente una vez que hayamos verificado tu transferencia.
+                  Tu pedido se procesará una vez hayamos verificado tu transferencia.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Resumen de Items (Solo si existen) */}
           {items && items.length > 0 && (
             <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-8">
               <h3 className="text-sm font-bold text-slate-500 mb-4 border-b border-slate-200 pb-2">
@@ -98,19 +172,12 @@ export default function ThankYou() {
               </h3>
               <div className="space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar">
                 {items.map((item, idx) => {
-                  // [FIX] Asegurar números limpios antes de operar
                   const qty = Number(item.quantity || item.qty || 1);
                   const price = Number(item.price) || 0;
-                  const itemTotal = price * qty;
-
                   return (
                     <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-slate-600 truncate w-3/4">
-                        {qty}x {item.title}
-                      </span>
-                      <span className="font-bold text-slate-800">
-                        ${itemTotal.toLocaleString("es-CO")}
-                      </span>
+                      <span className="text-slate-600 truncate w-3/4">{qty}x {item.title}</span>
+                      <span className="font-bold text-slate-800">${(price * qty).toLocaleString("es-CO")}</span>
                     </div>
                   );
                 })}
@@ -124,7 +191,6 @@ export default function ThankYou() {
             </div>
           )}
 
-          {/* Botones de Acción */}
           <div className="space-y-3">
             <button
               onClick={() => navigate("/perfil", { state: { openOrders: true } })}
@@ -146,7 +212,7 @@ export default function ThankYou() {
         Gracias por confiar en nosotros. Tu satisfacción es nuestra prioridad.
       </p>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }

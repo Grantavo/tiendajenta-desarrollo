@@ -1,23 +1,46 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ShoppingBag } from "lucide-react";
+import { db } from "../firebase/config";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function LoadingSpinner({ fullScreen = false }) {
-  // CORRECCIÓN: Usamos "Lazy Initial State".
-  // Pasamos una función al useState. Esto se ejecuta SOLO una vez antes de pintar.
-  // Resultado: Cero re-renderizados innecesarios y adiós error.
-  const [customLogo] = useState(() => {
+  // Fase 1: Leer instantáneamente de localStorage (sin re-render)
+  const getLogoFromCache = () => {
     try {
-      // Intentamos leer del localStorage inmediatamente
-      const storedSettings = localStorage.getItem("shopSettings");
-      if (storedSettings) {
-        const parsed = JSON.parse(storedSettings);
-        return parsed.logo || null; // Si existe el logo, lo usamos.
+      // 1. Clave directa (la más confiable y rápida)
+      const directLogo = localStorage.getItem("shopLogo");
+      if (directLogo) return directLogo;
+      // 2. Respaldo: objeto completo de settings
+      const stored = localStorage.getItem("shopSettings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.logo || null;
       }
-    } catch (error) {
-      console.warn("Error leyendo logo local:", error);
-    }
-    return null; // Valor por defecto si falla algo
-  });
+    } catch (_) {}
+    return null;
+  };
+
+  const [customLogo, setCustomLogo] = useState(getLogoFromCache);
+
+  // Fase 2: Si no hay logo en cache, buscar en Firebase como respaldo
+  useEffect(() => {
+    if (customLogo) return; // Ya tenemos logo, no necesitamos Firebase
+    const fetchLogo = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, "settings", "shop"));
+        if (docSnap.exists()) {
+          const logo = docSnap.data().logo;
+          if (logo) {
+            setCustomLogo(logo);
+            // Guardar en cache para la próxima vez
+            const current = JSON.parse(localStorage.getItem("shopSettings") || "{}");
+            localStorage.setItem("shopSettings", JSON.stringify({ ...current, logo }));
+          }
+        }
+      } catch (_) {}
+    };
+    fetchLogo();
+  }, []);
 
   if (fullScreen) {
     return (

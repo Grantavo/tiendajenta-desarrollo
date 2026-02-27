@@ -4,7 +4,7 @@ export default function Footer() {
   // LÓGICA DE ESTADO (Intacta)
   const [shopInfo] = useState(() => {
     const defaults = {
-      nombre: "TIENDA GENTA",
+      nombre: "GRUPO JENTA",
       direccion: "Pasto, Nariño, Colombia",
       telefono: "+57 300 123 4567",
       email: "contacto@tiendagenta.com",

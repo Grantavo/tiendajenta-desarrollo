@@ -12,7 +12,7 @@ import { toast } from "sonner";
 // FIREBASE
 import { db, auth } from "../firebase/config";
 import { doc, onSnapshot, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, getRedirectResult } from "firebase/auth";
 
 const CartContext = createContext();
 
@@ -62,6 +62,22 @@ export function CartProvider({ children }) {
 
   // --- FIREBASE AUTH LISTENER: Detecta login con Google (redirect o popup) ---
   useEffect(() => {
+    // 1. Manejar el resultado de la redirección de Google (OBLIGATORIO PARA MÓVILES)
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          console.log("🟢 [REDIRECT] Sesión completada con Google:", result.user.email);
+        }
+      } catch (error) {
+        console.error("🔴 [REDIRECT] Error al procesar login de Google:", error);
+        toast.error(`Error con Google: ${error.message}`);
+      }
+    };
+
+    handleRedirect();
+
+    // 2. Escuchar cambios de estado (Se disparará después de getRedirectResult)
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return; // No hay usuario autenticado
 
@@ -113,7 +129,13 @@ export function CartProvider({ children }) {
         // Guardar sesión y actualizar estado
         sessionStorage.setItem("shopUser", JSON.stringify(userData));
         setUser(userData);
+        window.dispatchEvent(new Event("auth-change")); // Avisar a la Navbar y la app
+
         toast.success(`¡Bienvenido, ${userData.name || firebaseUser.displayName}!`);
+
+        // Opcional: Si es nuevo redirigir al perfil (comentado porque navigate no está disponible en context fácilmente)
+        // if (isNew) window.location.href = "/perfil"; 
+
       } catch (error) {
         console.error("🔴 [AUTH] Error procesando usuario Google:", error);
       }

@@ -5,18 +5,18 @@ import { toast } from "sonner";
 
 // FIREBASE
 import { auth, db } from "../firebase/config";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signInWithPopup,
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithRedirect,
   GoogleAuthProvider,
-  updateProfile 
+  updateProfile
 } from "firebase/auth";
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  serverTimestamp 
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp
 } from "firebase/firestore";
 
 export default function AuthModal({ isOpen, onClose }) {
@@ -99,8 +99,8 @@ export default function AuthModal({ isOpen, onClose }) {
     try {
       // 1. Iniciar sesión con Firebase Auth
       const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        formData.email.trim(), 
+        auth,
+        formData.email.trim(),
         formData.password.trim()
       );
       const user = userCredential.user;
@@ -110,7 +110,7 @@ export default function AuthModal({ isOpen, onClose }) {
       // O unificamos usuarios. Por ahora buscamos en 'clients' primero.
       let userData = null;
       let collectionName = "users"; // Asumimos users primero para dar prioridad a admins
-      
+
       // 1. Intentar en USERS (Prioridad Admin)
       let docRef = doc(db, "users", user.uid);
       let docSnap = await getDoc(docRef);
@@ -124,23 +124,23 @@ export default function AuthModal({ isOpen, onClose }) {
 
       if (docSnap.exists()) {
         userData = { id: user.uid, ...docSnap.data(), collection: collectionName };
-        
+
         // Si es Staff, recuperar ROLES para permisos granulares
         // (Esto lo mantenemos en localStorage por compatibilidad con ProtectedRoute existente, 
         //  pero idealmente deberíamos moverlo a un contexto)
         if (collectionName === "users") {
-           // Asignamos una marca temporal de admin
-           try {
-             // Aquí buscaríamos los roles globales si fuera necesario, 
-             // por ahora simulamos lo que hacía el código anterior
-             // pero OJO: el código anterior traía TODOS los roles.
-             // Para simplificar, obtenemos los roles de nuevo si es necesario
-             // o confiamos en el ID del rol en el usuario.
-             // (Dejamos la parte de roles pendiente de refactorizar en ProtectedRoute, 
-             //  pero guardamos lo básico en sessionStorage para compatibilidad)
-           } catch (err) {
-             console.error("Error cargando roles", err);
-           }
+          // Asignamos una marca temporal de admin
+          try {
+            // Aquí buscaríamos los roles globales si fuera necesario, 
+            // por ahora simulamos lo que hacía el código anterior
+            // pero OJO: el código anterior traía TODOS los roles.
+            // Para simplificar, obtenemos los roles de nuevo si es necesario
+            // o confiamos en el ID del rol en el usuario.
+            // (Dejamos la parte de roles pendiente de refactorizar en ProtectedRoute, 
+            //  pero guardamos lo básico en sessionStorage para compatibilidad)
+          } catch (err) {
+            console.error("Error cargando roles", err);
+          }
         }
       } else {
         // Si no existe en Firestore pero sí en Auth (caso raro, migracion incompleta o error)
@@ -201,8 +201,8 @@ export default function AuthModal({ isOpen, onClose }) {
     try {
       // 1. Crear usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
-        auth, 
-        formData.email.trim(), 
+        auth,
+        formData.email.trim(),
         formData.password.trim()
       );
       const user = userCredential.user;
@@ -270,82 +270,21 @@ export default function AuthModal({ isOpen, onClose }) {
     }
   };
 
-  // --- LÓGICA GOOGLE SIGN-IN (popup en todos los dispositivos) ---
+  // --- LÓGICA GOOGLE SIGN-IN (Redirección para evitar bloqueos móviles) ---
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const googleUser = result.user;
-
-      // Verificar si ya existe en users (admin) o clients
-      let userData = null;
-      let collectionName = "users";
-      let isNew = false;
-
-      let docRef = doc(db, "users", googleUser.uid);
-      let docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        docRef = doc(db, "clients", googleUser.uid);
-        docSnap = await getDoc(docRef);
-        collectionName = "clients";
-      }
-
-      if (docSnap.exists()) {
-        userData = { id: googleUser.uid, ...docSnap.data(), collection: collectionName };
-      } else {
-        isNew = true;
-        const newClient = {
-          name: googleUser.displayName || "Cliente Google",
-          email: googleUser.email,
-          phone: "",
-          role: "client",
-          balance: 0,
-          points: 0,
-          createdAt: serverTimestamp(),
-        };
-        await setDoc(doc(db, "clients", googleUser.uid), newClient);
-        collectionName = "clients";
-        userData = {
-          id: googleUser.uid,
-          ...newClient,
-          collection: "clients",
-          createdAt: new Date().toISOString(),
-        };
-      }
-
-      sessionStorage.setItem("shopUser", JSON.stringify(userData));
-      window.dispatchEvent(new Event("auth-change"));
-      toast.success(`¡Bienvenido, ${userData.name || googleUser.displayName}!`);
-      onClose();
-
-      if (collectionName === "users") {
-        navigate("/admin");
-      } else if (isNew) {
-        navigate("/perfil", { state: { openProfile: true, isNewUser: true } });
-      } else {
-        navigate("/");
-      }
+      // Usamos Redirect en lugar de Popup para evitar que los navegadores móviles lo bloqueen
+      await signInWithRedirect(auth, provider);
+      // Tras signInWithRedirect, la página recarga automáticamente. 
+      // La lógica de creación del perfil en Firestore ("clients") la manejará CartContext.jsx en onAuthStateChanged.
     } catch (error) {
       console.error("🔴 [GOOGLE] Error:", error.code, error.message);
-      if (error.code === "auth/popup-closed-by-user") {
-        // El usuario cerró el popup, no mostrar error
-      } else if (error.code === "auth/popup-blocked") {
-        toast.error("El navegador bloqueó la ventana de Google. Permite popups e intenta de nuevo.", {
-          duration: 6000,
-        });
-      } else if (error.code === "auth/unauthorized-domain") {
-        toast.error("Dominio no autorizado para Google Sign-In.", {
-          description: "Contacta al administrador.",
-        });
-      } else {
-        toast.error(`Error con Google (${error.code || "desconocido"})`, {
-          description: error.message,
-          duration: 8000,
-        });
-      }
-    } finally {
+      toast.error(`Error con Google (${error.code || "desconocido"})`, {
+        description: error.message,
+        duration: 8000,
+      });
       setLoading(false);
     }
   };
@@ -472,10 +411,10 @@ export default function AuthModal({ isOpen, onClose }) {
           className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg width="20" height="20" viewBox="0 0 48 48">
-            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
-            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
-            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
-            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
           </svg>
           Continuar con Google
         </button>

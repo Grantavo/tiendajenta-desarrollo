@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Footer() {
-  // LÓGICA DE ESTADO (Intacta)
-  const [shopInfo] = useState(() => {
+  // Función para leer la configuración desde el disco
+  const loadSettings = () => {
     const defaults = {
       nombre: "GRUPO JENTA",
       direccion: "Pasto, Nariño, Colombia",
       telefono: "+57 300 123 4567",
       email: "contacto@tiendagenta.com",
-      facebook: "", // Lo dejamos vacío por defecto para probar la lógica
+      facebook: "",
       instagram: "",
       tiktok: "",
     };
@@ -31,7 +31,19 @@ export default function Footer() {
       console.error("Error cargando configuración:", error);
     }
     return defaults;
-  });
+  };
+
+  const [shopInfo, setShopInfo] = useState(loadSettings);
+
+  // Escuchar cuando ShopLayout.jsx descargue las configuraciones frescas y lance 'storage'
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setShopInfo(loadSettings());
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   // --- HELPER MEJORADO ---
   // Lógica: Si el admin no puso nada, redirige a la home de la red social.

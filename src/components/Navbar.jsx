@@ -56,16 +56,26 @@ export default function Navbar({ onOpenCart }) {
   }, []);
 
   // 1. CARGAR DATOS
-  const data = useMemo(() => {
+  const loadSettings = () => {
     try {
       const settings = JSON.parse(localStorage.getItem("shopSettings") || "{}");
       return {
         nombre: settings.nombre || "JENTA",
-        logo: "/img/logo tienda jenta.svg",
+        logo: settings.logo || "/img/logo tienda jenta.svg",
       };
     } catch {
       return { nombre: "JENTA", logo: "/img/logo tienda jenta.svg" };
     }
+  };
+
+  const [data, setData] = useState(loadSettings);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setData(loadSettings());
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   // 2. EFECTO: TRAER PRODUCTOS

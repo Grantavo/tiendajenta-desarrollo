@@ -1,6 +1,6 @@
 // src/hooks/useProducts.js
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 // Nota: Ajustamos la ruta de importación porque estamos dentro de 'hooks'
 import { db } from "../firebase/config";
 
@@ -15,30 +15,32 @@ export function useProducts() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Definimos la función asíncrona dentro del efecto
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        const productsRef = collection(db, "products");
-        const snapshot = await getDocs(productsRef);
+    setLoading(true);
 
+    const productsRef = collection(db, "products");
+
+    const unsubscribe = onSnapshot(
+      productsRef,
+      (snapshot) => {
         const data = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
         setProducts(data);
-      } catch (err) {
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
         console.error("Error obteniendo productos:", err);
         setError(err.message);
-      } finally {
-        // El 'finally' se ejecuta SIEMPRE, haya error o éxito
         setLoading(false);
       }
-    };
+    );
 
-    fetchProducts();
-  }, []); // Array vacío = Solo se ejecuta al montar el componente (una vez)
+    // Cleanup: nos desuscribimos cuando el componente se desmonta
+    return () => unsubscribe();
+  }, []); // Array vacío = Se suscribe una vez al montar
 
   // Retornamos un objeto con todo lo que la vista necesita
   return { products, loading, error };

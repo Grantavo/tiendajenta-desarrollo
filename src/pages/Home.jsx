@@ -6,12 +6,11 @@ import { toast } from "sonner";
 import { db } from "../firebase/config";
 import {
   collection,
-  getDocs,
   query,
   where,
   limit,
   doc,
-  getDoc,
+  onSnapshot,
 } from "firebase/firestore";
 
 import ProductCard from "../components/ProductCard";
@@ -26,14 +25,25 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
-    const fetchFirebaseData = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        // A. Diseño (banners) - Ya no traemos topBar aquí
-        const designDoc = await getDoc(doc(db, "banners", "design"));
-        if (designDoc.exists()) {
-          const data = designDoc.data();
+    let bannersLoaded = false;
+    let categoriesLoaded = false;
+    let productsLoaded = false;
+
+    // Helper para quitar la pantalla de carga solo cuando los tres datos estén listos
+    const checkAllLoaded = () => {
+      if (bannersLoaded && categoriesLoaded && productsLoaded) {
+        setLoading(false);
+      }
+    };
+
+    // A. Diseño (banners) en Tiempo Real
+    const unsubBanners = onSnapshot(
+      doc(db, "banners", "design"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
           setBanners(data.banners || []);
         } else {
           setBanners([
@@ -48,37 +58,61 @@ export default function Home() {
             },
           ]);
         }
-
-        // B. Categorías
-        const catRef = collection(db, "categories");
-        const catSnap = await getDocs(catRef);
-
-        const catsData = catSnap.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }));
-
-        setCategories(catsData);
-
-        // C. Productos destacados
-        const prodRef = collection(db, "products");
-        const q = query(prodRef, where("bestSeller", "==", "si"), limit(4));
-        const prodSnap = await getDocs(q);
-
-        const prodsData = prodSnap.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }));
-
-        setFeaturedProducts(prodsData);
-      } catch (error) {
-        console.error("Error cargando desde Firebase:", error);
-      } finally {
-        setLoading(false);
+        bannersLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error("Error cargando banners:", error);
+        bannersLoaded = true;
+        checkAllLoaded();
       }
-    };
+    );
 
-    fetchFirebaseData();
+    // B. Categorías en Tiempo Real
+    const unsubCategories = onSnapshot(
+      collection(db, "categories"),
+      (snapshot) => {
+        const catsData = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setCategories(catsData);
+        categoriesLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error("Error cargando categorías:", error);
+        categoriesLoaded = true;
+        checkAllLoaded();
+      }
+    );
+
+    // C. Productos destacados en Tiempo Real
+    const q = query(collection(db, "products"), where("bestSeller", "==", "si"), limit(4));
+    const unsubProducts = onSnapshot(
+      q,
+      (snapshot) => {
+        const prodsData = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setFeaturedProducts(prodsData);
+        productsLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error("Error cargando productos destacados:", error);
+        productsLoaded = true;
+        checkAllLoaded();
+      }
+    );
+
+    // Cleanup phase: Desuscribirse de todos los listeners al cerrar la página
+    return () => {
+      unsubBanners();
+      unsubCategories();
+      unsubProducts();
+    };
   }, []);
 
   // --- Carrusel ---
@@ -129,38 +163,37 @@ export default function Home() {
         </div>
 
         <div
-          className={`relative z-10 h-full flex flex-col justify-center px-12 transition-all duration-300 ${
-            activeBanner.textOverlay === "left"
+          className={`relative z-10 h-full flex flex-col justify-center px-12 transition-all duration-300 ${activeBanner.textOverlay === "left"
               ? "items-start text-left pl-20"
               : activeBanner.textOverlay === "right"
                 ? "items-end text-right pr-20"
                 : "items-center text-center"
-          }`}
+            }`}
         >
           <div className="max-w-2xl">
-              <h1
-                className="text-4xl md:text-6xl font-black mb-4 drop-shadow-lg"
-                style={{ color: activeBanner.textColor || "#ffffff" }}
+            <h1
+              className="text-4xl md:text-6xl font-black mb-4 drop-shadow-lg"
+              style={{ color: activeBanner.textColor || "#ffffff" }}
+            >
+              {activeBanner.title}
+            </h1>
+            <p
+              className="text-xl md:text-2xl mb-8 drop-shadow-md font-medium"
+              style={{ color: activeBanner.textColor || "#e2e8f0" }}
+            >
+              {activeBanner.subtitle}
+            </p>
+            <Link to={activeBanner.link || "/productos"}>
+              <button
+                className="px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"
+                style={{
+                  backgroundColor: activeBanner.btnColor || "#dc2626",
+                  color: activeBanner.btnTextColor || "#ffffff",
+                }}
               >
-                {activeBanner.title}
-              </h1>
-              <p
-                className="text-xl md:text-2xl mb-8 drop-shadow-md font-medium"
-                style={{ color: activeBanner.textColor || "#e2e8f0" }}
-              >
-                {activeBanner.subtitle}
-              </p>
-              <Link to={activeBanner.link || "/productos"}>
-                <button
-                  className="px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"
-                  style={{
-                    backgroundColor: activeBanner.btnColor || "#dc2626",
-                    color: activeBanner.btnTextColor || "#ffffff",
-                  }}
-                >
-                  {activeBanner.btnText || "Ver Productos"}
-                </button>
-              </Link>
+                {activeBanner.btnText || "Ver Productos"}
+              </button>
+            </Link>
           </div>
         </div>
 

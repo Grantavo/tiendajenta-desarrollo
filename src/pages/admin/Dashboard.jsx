@@ -327,26 +327,25 @@ export default function Dashboard() {
               {viewMode === "semana"
                 ? "Rendimiento Semanal"
                 : viewMode === "anio"
-                ? "Rendimiento Anual"
-                : "Crecimiento Histórico"}
+                  ? "Rendimiento Anual"
+                  : "Crecimiento Histórico"}
             </h3>
             <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg text-sm w-full sm:w-auto">
               {VIEW_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   onClick={() => setViewMode(option.id)}
-                  className={`w-full sm:w-auto px-4 py-2 sm:py-1 rounded-md transition-all capitalize ${
-                    viewMode === option.id
+                  className={`w-full sm:w-auto px-4 py-2 sm:py-1 rounded-md transition-all capitalize ${viewMode === option.id
                       ? "bg-white shadow-sm text-slate-800 font-bold"
                       : "text-slate-500 hover:text-slate-700"
-                  }`}
+                    }`}
                 >
                   {option.label}
                 </button>
               ))}
             </div>
           </div>
-          <div className="flex-1 w-full h-full">
+          <div className="flex-1 w-full h-full min-w-0 min-h-[300px]">
             {isMounted && (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart
@@ -409,7 +408,7 @@ export default function Dashboard() {
           <h3 className="font-bold text-slate-700 text-lg mb-4">
             Productos Top
           </h3>
-          <div className="flex-1 w-full h-full relative">
+          <div className="flex-1 w-full h-full relative min-w-0 min-h-[300px]">
             {isMounted && (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -488,11 +487,10 @@ export default function Dashboard() {
                       <td className="px-4 py-3 text-slate-500">{user.email}</td>
                       <td className="px-4 py-3">
                         <span
-                          className={`px-2 py-1 rounded border text-xs font-bold ${
-                            userRole?.isSystem
+                          className={`px-2 py-1 rounded border text-xs font-bold ${userRole?.isSystem
                               ? "bg-green-50 text-green-700 border-green-200"
                               : "bg-blue-50 text-blue-700 border-blue-200"
-                          }`}
+                            }`}
                         >
                           {userRole ? userRole.name : "Rol Desconocido"}
                         </span>

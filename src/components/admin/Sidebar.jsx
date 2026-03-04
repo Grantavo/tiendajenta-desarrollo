@@ -151,93 +151,89 @@ export default function Sidebar({ isOpen, onClose }) {
   return (
     <>
       {/* MOBILE OVERLAY */}
-      <div 
-        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+      <div
+        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
         onClick={onClose}
       />
 
-      <aside 
-        className={`fixed lg:relative z-50 w-72 h-screen flex flex-col transition-transform duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+      <aside
+        className={`fixed lg:relative z-50 w-72 h-screen flex flex-col transition-transform duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
-      {/* LOGO DINÁMICO */}
-      <div className="h-24 flex items-center justify-between px-8">
-        {shopSettings.logo ? (
-          <img
-            src={shopSettings.logo}
-            alt="Logo Tienda"
-            className="max-h-12 w-auto object-contain transition-all duration-300"
-          />
-        ) : (
-          <span className="text-2xl font-black tracking-tighter text-slate-800 uppercase truncate">
-            {shopSettings.nombre || "GENTA"}
-            <span className="text-red-600">.ADMIN</span>
-          </span>
-        )}
-        {/* CLOSE BUTTON MOBILE */}
-        <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-red-500">
-          <X size={24} />
-        </button>
-      </div>
+        {/* LOGO DINÁMICO */}
+        <div className="h-24 flex items-center justify-between px-8">
+          {shopSettings.logo ? (
+            <img
+              src={shopSettings.logo}
+              alt="Logo Tienda"
+              className="max-h-12 w-auto object-contain transition-all duration-300"
+            />
+          ) : (
+            <span className="text-2xl font-black tracking-tighter text-slate-800 uppercase truncate">
+              {shopSettings.nombre || "GENTA"}
+              <span className="text-red-600">.ADMIN</span>
+            </span>
+          )}
+          {/* CLOSE BUTTON MOBILE */}
+          <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-red-500">
+            <X size={24} />
+          </button>
+        </div>
 
-      {/* MENÚ FILTRADO */}
-      <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-8 no-scrollbar">
-        {allowedMenu.map((group, index) => (
-          <div key={index}>
-            <h3 className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">
-              {group.title}
-            </h3>
-            <ul className="space-y-1">
-              {group.items.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <li key={item.path}>
-                    <Link
-                      to={item.path}
-                      className={`group flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                        isActive
-                          ? "bg-white text-red-600 shadow-sm ring-1 ring-slate-200"
-                          : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
-                      }`}
-                    >
-                      <span
-                        className={`transition-colors duration-200 ${
-                          isActive
-                            ? "text-red-600"
-                            : "text-slate-400 group-hover:text-slate-600"
-                        }`}
+        {/* MENÚ FILTRADO */}
+        <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-8 no-scrollbar">
+          {allowedMenu.map((group, index) => (
+            <div key={index}>
+              <h3 className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">
+                {group.title}
+              </h3>
+              <ul className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        className={`group flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                            ? "bg-white text-red-600 shadow-sm ring-1 ring-slate-200"
+                            : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                          }`}
                       >
-                        {item.icon}
-                      </span>
-                      {item.label}
-                      {isActive && (
-                        <div className="ml-auto w-2 h-2 rounded-full bg-red-600 shadow-sm animate-pulse"></div>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </nav>
+                        <span
+                          className={`transition-colors duration-200 ${isActive
+                              ? "text-red-600"
+                              : "text-slate-400 group-hover:text-slate-600"
+                            }`}
+                        >
+                          {item.icon}
+                        </span>
+                        {item.label}
+                        {isActive && (
+                          <div className="ml-auto w-2 h-2 rounded-full bg-red-600 shadow-sm animate-pulse"></div>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
 
-      {/* FOOTER USER */}
-      <div className="p-6 border-t border-slate-200/50">
-        <a
-          href="/?preview=admin"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-slate-900 hover:scale-[1.02] transition-all duration-300"
-        >
-          <LogOut size={18} />
-          <span>Ver Tienda</span>
-        </a>
-      </div>
-    </aside>
+        {/* FOOTER USER */}
+        <div className="p-4 border-t border-slate-200/50 mt-auto bg-slate-100/95 backdrop-blur-xl">
+          <a
+            href="/?preview=admin"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-slate-900 hover:scale-[1.02] transition-all duration-300"
+          >
+            <LogOut size={18} />
+            <span>Ver Tienda</span>
+          </a>
+        </div>
+      </aside>
     </>
   );
 }

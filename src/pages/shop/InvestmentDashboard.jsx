@@ -284,7 +284,7 @@ export default function InvestmentDashboard() {
                 ${totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               {/* Indicador de Rendimiento */}
-              <div className={`flex items-center gap-1 font-medium px-2 py-0.5 md:px-3 md:py-1 rounded-full ${totalPortfolioValue > 0 && marketOpen ? 'text-green-600 bg-green-50' : 'text-slate-400 bg-slate-100'}`}>
+              <div className="flex items-center gap-1 font-medium px-2 py-0.5 md:px-3 md:py-1 rounded-full text-green-600 bg-green-50">
                 <ArrowUpRight size={16} className="md:w-5 md:h-5" />
                 <span className="text-sm md:text-lg">
                   {totalPortfolioValue > 0 ? `+${((projectedRate / 30) * 100).toFixed(2)}%` : '0.0%'}

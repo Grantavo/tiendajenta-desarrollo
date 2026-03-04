@@ -9,6 +9,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithRedirect,
+  signInWithPopup, // Added signInWithPopup
   GoogleAuthProvider,
   updateProfile
 } from "firebase/auth";
@@ -270,21 +271,38 @@ export default function AuthModal({ isOpen, onClose }) {
     }
   };
 
-  // --- LÓGICA GOOGLE SIGN-IN (Redirección para evitar bloqueos móviles) ---
+  // --- LÓGICA GOOGLE SIGN-IN (Popup con fallback a Redirect) ---
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      // Usamos Redirect en lugar de Popup para evitar que los navegadores móviles lo bloqueen
-      await signInWithRedirect(auth, provider);
-      // Tras signInWithRedirect, la página recarga automáticamente. 
-      // La lógica de creación del perfil en Firestore ("clients") la manejará CartContext.jsx en onAuthStateChanged.
+      // 1. Intentamos con Popup (Es más rápido y no sufre de bloqueo de cookies de 3ros)
+      await signInWithPopup(auth, provider);
+      // Si funciona, cerramos el modal. CartContext.jsx se encarga de crear el usuario.
+      onClose();
     } catch (error) {
-      console.error("🔴 [GOOGLE] Error:", error.code, error.message);
-      toast.error(`Error con Google (${error.code || "desconocido"})`, {
-        description: error.message,
-        duration: 8000,
-      });
+      if (error.code === 'auth/popup-blocked') {
+        // En móviles o navegadores estrictos que bloqueen popups, intentamos Redirección
+        toast.info("Ventana bloqueada, redirigiendo a Google...", { duration: 3000 });
+        await signInWithRedirect(auth, provider);
+      } else {
+        console.error("🔴 [GOOGLE] Error:", error.code, error.message);
+        if (error.code === "auth/unauthorized-domain") {
+          toast.error("Dominio no autorizado para Google Sign-In.", {
+            description: "Asegúrate de haber agregado tu dominio en la Consola Firebase.",
+          });
+        }
+        else if (error.code === "auth/popup-closed-by-user") {
+          // No hacer nada si cierran la pestaña
+        } else {
+          toast.error(`Error con Google (${error.code || "desconocido"})`, {
+            description: error.message,
+            duration: 8000,
+          });
+        }
+      }
+    } finally {
+      // Solo quitamos el loading si no redirigimos (porque si redirigimos la app se recarga)
       setLoading(false);
     }
   };

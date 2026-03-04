@@ -158,7 +158,7 @@ export default function Sidebar({ isOpen, onClose }) {
       />
 
       <aside
-        className={`fixed lg:relative z-50 w-72 h-screen flex flex-col transition-transform duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`fixed lg:relative z-50 w-72 h-[100dvh] flex flex-col transition-transform duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           }`}
       >
         {/* LOGO DINÁMICO */}
@@ -196,14 +196,14 @@ export default function Sidebar({ isOpen, onClose }) {
                       <Link
                         to={item.path}
                         className={`group flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
-                            ? "bg-white text-red-600 shadow-sm ring-1 ring-slate-200"
-                            : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                          ? "bg-white text-red-600 shadow-sm ring-1 ring-slate-200"
+                          : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
                           }`}
                       >
                         <span
                           className={`transition-colors duration-200 ${isActive
-                              ? "text-red-600"
-                              : "text-slate-400 group-hover:text-slate-600"
+                            ? "text-red-600"
+                            : "text-slate-400 group-hover:text-slate-600"
                             }`}
                         >
                           {item.icon}

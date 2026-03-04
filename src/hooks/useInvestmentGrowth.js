@@ -25,7 +25,7 @@ export const useInvestmentGrowth = (userId) => {
 
                 const data = userSnap.data();
                 const currentBalance = data.investmentBalance || 0;
-                
+
                 // Si no hay saldo, no hay crecimiento
                 if (currentBalance <= 0) {
                     setIsUpdating(false);
@@ -46,14 +46,24 @@ export const useInvestmentGrowth = (userId) => {
 
                     // Simular día por día para interés compuesto real
                     for (let i = 0; i < daysPassed; i++) {
-                        // Tasa aleatoria entre 0.04% y 0.07%
-                        // Math.random() * (max - min) + min
-                        const dailyRate = Math.random() * (0.0007 - 0.0004) + 0.0004;
+                        const iterationDate = new Date(lastUpdate.getTime() + ((i + 1) * 24 * 60 * 60 * 1000));
+                        const day = iterationDate.getDate();
+                        const isNegativeDay = day % 7 === 0; // Días 7, 14, 21, 28 serán rojos (Pérdidas simuladas)
+
+                        let dailyRate = 0;
+                        if (isNegativeDay) {
+                            // Día Rojo: Pierden entre -0.05% y -0.15% (Visualmente estresante pero controlado)
+                            dailyRate = -(Math.random() * (0.0015 - 0.0005) + 0.0005);
+                        } else {
+                            // Día Verde: Ganan entre +0.06% y +0.09% (Compensa las pérdidas para llegar al 1.6% mensual)
+                            dailyRate = Math.random() * (0.0009 - 0.0006) + 0.0006;
+                        }
+
                         const growth = newBalance * dailyRate;
                         newBalance += growth;
-                        
+
                         historyLog.push({
-                            date: new Date(lastUpdate.getTime() + ((i + 1) * 24 * 60 * 60 * 1000)),
+                            date: iterationDate,
                             rate: dailyRate,
                             growth: growth,
                             balance: newBalance

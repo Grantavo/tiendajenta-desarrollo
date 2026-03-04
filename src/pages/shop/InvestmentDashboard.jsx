@@ -120,6 +120,7 @@ export default function InvestmentDashboard() {
   const navigate = useNavigate();
   const [investmentBalance, setInvestmentBalance] = useState(0);
   const [projectedRate, setProjectedRate] = useState(0.016); // 1.6% Promedio Inicial
+  const [dailyRateUI, setDailyRateUI] = useState(0.05); // Estado individual para la vista "Hoy"
   const [userId, setUserId] = useState(null);
 
   const [totalAssetsValue, setTotalAssetsValue] = useState(0);
@@ -195,12 +196,28 @@ export default function InvestmentDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // EFECTO: Fluctuación del mercado en vivo - SOLO cuando el mercado está abierto
+  // EFECTO: Fluctuación del mercado en vivo
   useEffect(() => {
-    if (!marketOpen) return; // No fluctuar fuera de horario
+    // Calculamos si hoy debe ser un día pesimista para la simulación
+    const today = new Date().getDate();
+    const isNegativeDay = today % 7 === 0; // Días 7, 14, 21, 28 serán rojos
+
+    if (!marketOpen) {
+      setDailyRateUI(isNegativeDay ? -0.06 : 0.05);
+      return;
+    }
+
     const interval = setInterval(() => {
+      // Mensual: siempre positivo rondando el 1.5% - 1.7% para no afectar previsiones a largo plazo
       const randomRate = 0.0150 + Math.random() * (0.0170 - 0.0150);
       setProjectedRate(randomRate);
+
+      // Diario: si es día rojo, mostrar negativa. Si no, dividir el mensual.
+      if (isNegativeDay) {
+        setDailyRateUI(-(0.04 + Math.random() * 0.05)); // -0.04% a -0.09% Visual
+      } else {
+        setDailyRateUI((randomRate / 30) * 100);
+      }
     }, 5000);
     return () => clearInterval(interval);
   }, [marketOpen]);
@@ -284,10 +301,10 @@ export default function InvestmentDashboard() {
                 ${totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               {/* Indicador de Rendimiento */}
-              <div className="flex items-center gap-1 font-medium px-2 py-0.5 md:px-3 md:py-1 rounded-full text-green-600 bg-green-50">
-                <ArrowUpRight size={16} className="md:w-5 md:h-5" />
+              <div className={`flex items-center gap-1 font-medium px-2 py-0.5 md:px-3 md:py-1 rounded-full ${totalPortfolioValue === 0 ? 'text-slate-400 bg-slate-100' : dailyRateUI >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                {dailyRateUI >= 0 ? <ArrowUpRight size={16} className="md:w-5 md:h-5" /> : <ArrowDownRight size={16} className="md:w-5 md:h-5" />}
                 <span className="text-sm md:text-lg">
-                  {totalPortfolioValue > 0 ? `+${((projectedRate / 30) * 100).toFixed(2)}%` : '0.0%'}
+                  {totalPortfolioValue > 0 ? `${dailyRateUI > 0 ? '+' : ''}${dailyRateUI.toFixed(2)}%` : '0.0%'}
                 </span>
                 <span className="text-xs md:text-sm text-slate-500 font-normal ml-1">hoy</span>
               </div>

@@ -45,6 +45,7 @@ export default function ProductCard({ product }) {
           <img
             src={imageSrc}
             alt={title}
+            loading="lazy"
             className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -80,9 +81,8 @@ export default function ProductCard({ product }) {
             </span>
           )}
           <span
-            className={`block font-black text-xl ${
-              hasDiscount ? "text-[#DC2626]" : "text-slate-800"
-            }`}
+            className={`block font-black text-xl ${hasDiscount ? "text-[#DC2626]" : "text-slate-800"
+              }`}
           >
             {formattedPrice}
           </span>
@@ -94,7 +94,7 @@ export default function ProductCard({ product }) {
             disabled={isOutOfStock}
             className="w-full bg-[#F1F5F9] text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-[#0F172A] hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-                        {isOutOfStock ? "Sin Stock" : "Ver Detalle"}
+            {isOutOfStock ? "Sin Stock" : "Ver Detalle"}
           </button>
         </Link>
       </div>

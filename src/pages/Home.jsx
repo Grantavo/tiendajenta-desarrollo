@@ -155,6 +155,8 @@ export default function Home() {
             <img
               src={activeBanner.image}
               alt="Banner"
+              fetchpriority="high"
+              decoding="async"
               className="w-full h-full object-cover opacity-60"
             />
           ) : (
@@ -164,10 +166,10 @@ export default function Home() {
 
         <div
           className={`relative z-10 h-full flex flex-col justify-center px-12 transition-all duration-300 ${activeBanner.textOverlay === "left"
-              ? "items-start text-left pl-20"
-              : activeBanner.textOverlay === "right"
-                ? "items-end text-right pr-20"
-                : "items-center text-center"
+            ? "items-start text-left pl-20"
+            : activeBanner.textOverlay === "right"
+              ? "items-end text-right pr-20"
+              : "items-center text-center"
             }`}
         >
           <div className="max-w-2xl">
@@ -242,6 +244,7 @@ export default function Home() {
                     <img
                       src={cat.image}
                       alt={cat.name}
+                      loading="lazy"
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                   ) : (

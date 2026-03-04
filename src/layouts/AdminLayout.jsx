@@ -23,7 +23,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   const { user: authUser } = useOutletContext() || {};
-  
+
   const [currentUser, setCurrentUser] = useState(
     authUser || JSON.parse(sessionStorage.getItem("shopUser") || "{}")
   );
@@ -79,10 +79,11 @@ export default function AdminLayout() {
           users: userSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
           orders: orderSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
         });
-        
+
         // GUARDAR ROLES PARA EL SIDEBAR (usePermissions)
         const rolesData = roleSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         localStorage.setItem("shopRoles", JSON.stringify(rolesData));
+        window.dispatchEvent(new Event("storage")); // Avisar al Sidebar que los roles llegaron
       } catch (e) {
         console.error(e);
       }
@@ -167,9 +168,8 @@ export default function AdminLayout() {
 
   return (
     <div
-      className={`flex h-screen bg-slate-50 ${
-        isDarkMode ? "dark bg-slate-900 text-white" : ""
-      }`}
+      className={`flex h-screen bg-slate-50 ${isDarkMode ? "dark bg-slate-900 text-white" : ""
+        }`}
     >
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
@@ -177,7 +177,7 @@ export default function AdminLayout() {
         {isHeaderVisible && (
           <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-20 relative animate-in slide-in-from-top-2 duration-300">
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="lg:hidden text-slate-500 hover:text-slate-700"
               >
@@ -185,57 +185,57 @@ export default function AdminLayout() {
               </button>
 
               <div className="relative w-80 hidden sm:block">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                <Search size={18} />
-              </div>
-              <input
-                id="admin-search" // Agregado para quitar advertencia
-                name="admin-search" // Agregado para quitar advertencia
-                type="text"
-                placeholder="Buscar..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white outline-none focus:border-blue-500 text-slate-700"
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-
-              {showResults && (
-                <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 shadow-xl rounded-lg p-2 z-50">
-                  {results.products.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => goToResult("/admin/productos")}
-                      className="p-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
-                    >
-                      {p.title}
-                    </div>
-                  ))}
-                  {results.users.map((u) => (
-                    <div
-                      key={u.id}
-                      onClick={() => goToResult("/admin/usuarios")}
-                      className="p-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
-                    >
-                      {u.name}
-                    </div>
-                  ))}
-                  {results.orders.map((o) => (
-                    <div
-                      key={o.id}
-                      onClick={() => goToResult("/admin/pedidos")}
-                      className="p-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
-                    >
-                      Pedido #{o.id}
-                    </div>
-                  ))}
-                  {!results.products.length &&
-                    !results.users.length &&
-                    !results.orders.length && (
-                      <div className="p-2 text-xs text-center text-slate-400">
-                        Sin resultados
-                      </div>
-                    )}
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Search size={18} />
                 </div>
-              )}
+                <input
+                  id="admin-search" // Agregado para quitar advertencia
+                  name="admin-search" // Agregado para quitar advertencia
+                  type="text"
+                  placeholder="Buscar..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white outline-none focus:border-blue-500 text-slate-700"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                />
+
+                {showResults && (
+                  <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 shadow-xl rounded-lg p-2 z-50">
+                    {results.products.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => goToResult("/admin/productos")}
+                        className="p-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
+                      >
+                        {p.title}
+                      </div>
+                    ))}
+                    {results.users.map((u) => (
+                      <div
+                        key={u.id}
+                        onClick={() => goToResult("/admin/usuarios")}
+                        className="p-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
+                      >
+                        {u.name}
+                      </div>
+                    ))}
+                    {results.orders.map((o) => (
+                      <div
+                        key={o.id}
+                        onClick={() => goToResult("/admin/pedidos")}
+                        className="p-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700"
+                      >
+                        Pedido #{o.id}
+                      </div>
+                    ))}
+                    {!results.products.length &&
+                      !results.users.length &&
+                      !results.orders.length && (
+                        <div className="p-2 text-xs text-center text-slate-400">
+                          Sin resultados
+                        </div>
+                      )}
+                  </div>
+                )}
               </div>
             </div>
 

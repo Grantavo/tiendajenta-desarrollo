@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 
 export const usePermissions = () => {
   // 1. Obtenemos el usuario de la sesión actual
@@ -10,13 +10,26 @@ export const usePermissions = () => {
     }
   }, []);
 
-  // 2. Obtenemos la lista de roles que guardas en localStorage (desde Users.jsx)
-  const allRoles = useMemo(() => {
+  // 2. Obtenemos la lista de roles que guardas en localStorage (desde AdminLayout o Users)
+  const [allRoles, setAllRoles] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("shopRoles") || "[]");
     } catch {
       return [];
     }
+  });
+
+  // Hacemos que el hook escuche cambios en localStorage para actualizar los roles asíncronos
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        setAllRoles(JSON.parse(localStorage.getItem("shopRoles") || "[]"));
+      } catch (e) {
+        setAllRoles([]);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   // 3. Buscamos el rol específico que tiene asignado el usuario logueado

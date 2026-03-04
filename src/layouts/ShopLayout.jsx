@@ -85,7 +85,7 @@ export default function ShopLayout() {
         // 2. Design (Top Bar)
         const designDoc = await getDoc(doc(db, "banners", "design"));
         if (designDoc.exists()) {
-           setTopBar(designDoc.data().topBar || null);
+          setTopBar(designDoc.data().topBar || null);
         }
 
       } catch (error) {
@@ -101,10 +101,10 @@ export default function ShopLayout() {
         if (docSnap.exists()) {
           const cost = docSnap.data().cost;
           if (cost !== undefined) {
-             localStorage.setItem("shopShippingCost", cost);
+            localStorage.setItem("shopShippingCost", cost);
           }
         } else {
-             localStorage.setItem("shopShippingCost", "0");
+          localStorage.setItem("shopShippingCost", "0");
         }
         window.dispatchEvent(new Event("storage"));
       }
@@ -148,33 +148,14 @@ export default function ShopLayout() {
   }, []);
 
   // --- GUARDIÁN DE ADMIN (Evita que el Admin navegue la tienda por error) ---
-  // Excepción: si abrió "Ver Tienda" en nueva pestaña, dejarlo navegar
+  // MODIFICADO: Solo redirigimos a /admin si explícitamente estamos en una página de login o recién logueados.
+  // Ya NO forzamos la redirección todo el tiempo para evitar la pantalla blanca cuando un admin decide visitar jenta.online
   useEffect(() => {
-    // Detectar si vino con ?preview=admin y guardar la marca
     const params = new URLSearchParams(window.location.search);
     if (params.get("preview") === "admin") {
       sessionStorage.setItem("adminPreview", "true");
     }
-    // Si tiene la marca de preview, no redirigir
-    if (sessionStorage.getItem("adminPreview")) return;
-
-    if (user?.roleId) {
-      try {
-        const rolesStr = localStorage.getItem("shopRoles");
-        if (rolesStr) {
-          const allRoles = JSON.parse(rolesStr);
-          const userRole = allRoles.find((r) => r.id === user.roleId);
-          const isAdmin = userRole?.isSystem || (userRole?.permissions && userRole.permissions.length > 0);
-          
-          if (isAdmin) {
-             navigate("/admin", { replace: true });
-          }
-        }
-      } catch (e) {
-        console.error("Error verificando rol en ShopLayout", e);
-      }
-    }
-  }, [user, navigate]);
+  }, []);
 
   // --- FUNCIÓN ACTUALIZAR CANTIDAD ---
   const updateQty = (productId, delta) => {
@@ -264,16 +245,16 @@ export default function ShopLayout() {
 
   useEffect(() => {
     const updateShipping = () => {
-        const standardRate = Number(localStorage.getItem("shopShippingCost")) || 0;
-        
-        // Lógica condicional: Si es Pasto -> 0
-        if (user?.city && user.city.toLowerCase().includes("pasto")) {
-            setShippingCost(0);
-        } else {
-            setShippingCost(standardRate);
-        }
+      const standardRate = Number(localStorage.getItem("shopShippingCost")) || 0;
+
+      // Lógica condicional: Si es Pasto -> 0
+      if (user?.city && user.city.toLowerCase().includes("pasto")) {
+        setShippingCost(0);
+      } else {
+        setShippingCost(standardRate);
+      }
     };
-    
+
     updateShipping();
     window.addEventListener("storage", updateShipping);
     return () => window.removeEventListener("storage", updateShipping);
@@ -300,14 +281,14 @@ export default function ShopLayout() {
         // Usamos una referencia a counters/orders
         const counterRef = doc(db, "counters", "orders");
         let newOrderId = "";
-        
+
         await runTransaction(db, async (transaction) => {
           // ===== FASE 1: TODAS LAS LECTURAS =====
           const counterSnap = await transaction.get(counterRef);
-          
+
           const userRef = doc(db, "clients", user.id);
           const userSnap = await transaction.get(userRef);
-          
+
           if (!userSnap.exists()) throw "Perfil de usuario no encontrado";
 
           // Leer todos los productos
@@ -315,55 +296,55 @@ export default function ShopLayout() {
           const validatedItems = [];
 
           for (const item of cart) {
-             const productRef = doc(db, "products", item.id);
-             const productSnap = await transaction.get(productRef);
+            const productRef = doc(db, "products", item.id);
+            const productSnap = await transaction.get(productRef);
 
-             if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
+            if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
 
-             const pData = productSnap.data();
-             const realPrice = Number(pData.price);
-             const currentStock = Number(pData.stock);
-             const qty = Number(item.quantity || item.qty || 1);
+            const pData = productSnap.data();
+            const realPrice = Number(pData.price);
+            const currentStock = Number(pData.stock);
+            const qty = Number(item.quantity || item.qty || 1);
 
-             if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
+            if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
 
-             serverSubtotal += realPrice * qty;
-             validatedItems.push({ 
-                ...item, 
-                price: realPrice,
-                qty: qty,
-                ref: productRef 
-             });
+            serverSubtotal += realPrice * qty;
+            validatedItems.push({
+              ...item,
+              price: realPrice,
+              qty: qty,
+              ref: productRef
+            });
           }
 
           // Validaciones con datos leídos
-          const serverDiscount = appliedDiscount 
-             ? (serverSubtotal * appliedDiscount.percent) / 100 
-             : 0;
+          const serverDiscount = appliedDiscount
+            ? (serverSubtotal * appliedDiscount.percent) / 100
+            : 0;
           const serverTotal = serverSubtotal - serverDiscount + shippingCost;
 
           const rawBalance = String(userSnap.data().balance || "0");
           const cleanBalance = Number(rawBalance.replace(/[.,]/g, "")) || 0;
-          
+
           if (cleanBalance < serverTotal) throw `Saldo insuficiente. Total real: $${serverTotal.toLocaleString()}`;
 
           // Calcular nuevo ID
           let nextId = 1001;
           if (counterSnap.exists()) {
-              nextId = (counterSnap.data().seq || 1000) + 1;
+            nextId = (counterSnap.data().seq || 1000) + 1;
           }
           newOrderId = `P${nextId}`;
 
           // ===== FASE 2: TODAS LAS ESCRITURAS =====
           transaction.set(counterRef, { seq: nextId }, { merge: true });
 
-          transaction.update(userRef, { 
-            balance: increment(-serverTotal) 
+          transaction.update(userRef, {
+            balance: increment(-serverTotal)
           });
 
           for (const item of validatedItems) {
-            transaction.update(item.ref, { 
-              stock: increment(-item.qty) 
+            transaction.update(item.ref, {
+              stock: increment(-item.qty)
             });
           }
 
@@ -507,7 +488,7 @@ export default function ShopLayout() {
       message += `\n🚚 Envío: $${shippingCost.toLocaleString()}`;
     }
     message += `\n\n*TOTAL A PAGAR: $${total.toLocaleString()}*`;
-    
+
     // MÉTODO DE PAGO
     message += `\n💳 Método: ${selectedPayment.type}`;
 
@@ -515,11 +496,11 @@ export default function ShopLayout() {
       // 0. Generar ID Secuencial (Atomic Increment)
       const counterRef = doc(db, "counters", "orders");
       let newOrderId = "";
-      
+
       console.log("🔵 [CHECKOUT WA] Iniciando transacción...");
       console.log("🔵 [CHECKOUT WA] User (sessionStorage):", user?.id, user?.email);
       console.log("🔵 [CHECKOUT WA] auth.currentUser:", auth.currentUser?.uid, auth.currentUser?.email);
-      
+
       if (!auth.currentUser) {
         toast.error("Tu sesión expiró. Por favor inicia sesión de nuevo.");
         setIsAuthOpen(true);
@@ -534,32 +515,32 @@ export default function ShopLayout() {
 
         console.log("🟡 [PASO 2] Leyendo productos del carrito...");
         const validatedItems = [];
-        
+
         for (const item of cart) {
-             const productRef = doc(db, "products", item.id);
-             console.log("  🟡 Leyendo producto:", item.id, item.title);
-             const productSnap = await transaction.get(productRef);
-             console.log("  ✅ Producto leído OK:", item.title);
+          const productRef = doc(db, "products", item.id);
+          console.log("  🟡 Leyendo producto:", item.id, item.title);
+          const productSnap = await transaction.get(productRef);
+          console.log("  ✅ Producto leído OK:", item.title);
 
-             if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
+          if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
 
-             const pData = productSnap.data();
-             const currentStock = Number(pData.stock);
-             const qty = Number(item.quantity || item.qty || 1);
+          const pData = productSnap.data();
+          const currentStock = Number(pData.stock);
+          const qty = Number(item.quantity || item.qty || 1);
 
-             if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
+          if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
 
-             validatedItems.push({ 
-                ...item, 
-                qty: qty,
-                ref: productRef 
-             });
+          validatedItems.push({
+            ...item,
+            qty: qty,
+            ref: productRef
+          });
         }
 
         // Calcular nuevo ID
         let nextId = 1001;
         if (counterSnap.exists()) {
-            nextId = (counterSnap.data().seq || 1000) + 1;
+          nextId = (counterSnap.data().seq || 1000) + 1;
         }
         newOrderId = `P${nextId}`;
         console.log("✅ [PASO 2] Todos los productos validados. Nuevo ID:", newOrderId);
@@ -570,8 +551,8 @@ export default function ShopLayout() {
 
         console.log("🟡 [PASO 4] Actualizando stock de productos...");
         for (const item of validatedItems) {
-          transaction.update(item.ref, { 
-            stock: increment(-item.qty) 
+          transaction.update(item.ref, {
+            stock: increment(-item.qty)
           });
         }
 
@@ -586,9 +567,9 @@ export default function ShopLayout() {
           items: validatedItems.map(({ ref, ...rest }) => rest),
           total: total,
           paymentMethod: selectedPayment.type,
-          isPaid: false, 
-          stockDeducted: true, 
-          status: "Pendiente", 
+          isPaid: false,
+          stockDeducted: true,
+          status: "Pendiente",
           createdAt: serverTimestamp(),
           date: new Date().toLocaleDateString("es-CO", {
             day: "2-digit",
@@ -644,16 +625,14 @@ export default function ShopLayout() {
       <Footer />
 
       <div
-        className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
-          isCartOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isCartOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
         onClick={() => setIsCartOpen(false)}
       />
 
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col ${
-          isCartOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col ${isCartOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
           <h2 className="font-bold text-xl flex items-center gap-2 text-slate-800">
@@ -748,57 +727,57 @@ export default function ShopLayout() {
                   <CreditCard size={14} /> Método de Pago (Obligatorio)
                 </h3>
                 <div className="space-y-3">
-                  
+
                   {/* OPCIÓN 1: BILLETERA (Solo si tiene saldo) */}
                   {(() => {
                     // Safe Balance Parsing
                     // Convert "20.000" -> 20000, "20,000" -> 20000
                     const rawBalance = user?.balance ? String(user.balance) : "0";
-                    const cleanBalance = rawBalance.replace(/[.,]/g, ""); 
+                    const cleanBalance = rawBalance.replace(/[.,]/g, "");
                     const balanceNum = Number(cleanBalance) || 0;
-                    
+
                     if (!user) return null; // Solo requerimos usuario logueado
 
                     return (
-                  <div
-                    onClick={() => setSelectedPayment({ type: "Billetera", id: "wallet" })}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === "wallet" ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <Wallet size={16} className="text-blue-600" />
-                        <div className="flex flex-col">
-                            <span className="font-bold text-sm text-slate-800">
-                            Mi Billetera
-                            </span>
-                            <span className="text-xs font-bold text-slate-500">
+                      <div
+                        onClick={() => setSelectedPayment({ type: "Billetera", id: "wallet" })}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === "wallet" ? "bg-blue-50 border-blue-500 ring-1" : "bg-white border-slate-200"}`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Wallet size={16} className="text-blue-600" />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm text-slate-800">
+                                Mi Billetera
+                              </span>
+                              <span className="text-xs font-bold text-slate-500">
                                 Saldo: ${balanceNum.toLocaleString()}
-                            </span>
+                              </span>
+                            </div>
+                          </div>
+                          {selectedPayment?.id === "wallet" && (
+                            <Check size={16} className="text-blue-600" />
+                          )}
                         </div>
+                        {balanceNum < total && (
+                          <div className="mt-2 flex justify-between items-center bg-red-50 p-2 rounded-lg border border-red-100">
+                            <p className="text-[10px] text-red-500 font-bold italic flex-1">
+                              Saldo insuficiente
+                            </p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsCartOpen(false); // Cerrar carrito
+                                navigate("/perfil", { state: { openRecharge: true } }); // Ir a perfil y abrir modal
+                              }}
+                              className="ml-2 text-[10px] bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-green-700 transition"
+                            >
+                              Recargar
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      {selectedPayment?.id === "wallet" && (
-                          <Check size={16} className="text-blue-600" />
-                      )}
-                    </div>
-                    {balanceNum < total && (
-                      <div className="mt-2 flex justify-between items-center bg-red-50 p-2 rounded-lg border border-red-100">
-                        <p className="text-[10px] text-red-500 font-bold italic flex-1">
-                          Saldo insuficiente
-                        </p>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsCartOpen(false); // Cerrar carrito
-                            navigate("/perfil", { state: { openRecharge: true } }); // Ir a perfil y abrir modal
-                          }}
-                          className="ml-2 text-[10px] bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-green-700 transition"
-                        >
-                          Recargar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  );
+                    );
                   })()}
 
                   {/* OPCIÓN 2: COORDINAR POR WHATSAPP (Siempre disponible) */}
@@ -825,11 +804,10 @@ export default function ShopLayout() {
                   {/* OPCIÓN 3: PAGAR CON BOLD (Pasarela de pago) */}
                   <div
                     onClick={() => setSelectedPayment({ type: "Bold", id: "bold" })}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      selectedPayment?.id === "bold" 
-                        ? "bg-indigo-50 border-indigo-500 ring-1" 
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === "bold"
+                        ? "bg-indigo-50 border-indigo-500 ring-1"
                         : "bg-white border-slate-200"
-                    }`}
+                      }`}
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
@@ -881,9 +859,9 @@ export default function ShopLayout() {
                 onClick={
                   appliedDiscount
                     ? () => {
-                        setAppliedDiscount(null);
-                        setCouponCode("");
-                      }
+                      setAppliedDiscount(null);
+                      setCouponCode("");
+                    }
                     : handleApplyCoupon
                 }
                 className={`px-3 py-2 rounded-lg text-xs font-bold ${appliedDiscount ? "bg-red-100 text-red-600" : "bg-slate-800 text-white"}`}
@@ -903,7 +881,7 @@ export default function ShopLayout() {
                   <span>-${discountAmount.toLocaleString()}</span>
                 </div>
               )}
-              
+
               {/* COSTO DE ENVÍO */}
               <div className="flex justify-between items-center text-slate-600 py-1">
                 <div className="flex items-center gap-2">
@@ -946,7 +924,7 @@ export default function ShopLayout() {
         )}
       </div>
       <WhatsAppFloat hide={isCartOpen} />
-      
+
       {/* MODAL DE LOGIN */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>

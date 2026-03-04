@@ -275,7 +275,8 @@ export function CartProvider({ children }) {
       console.error("Error cerrando Firebase Auth:", e);
     }
     window.dispatchEvent(new Event("auth-change")); // Avisar a toda la app
-    toast.info("Sesión cerrada");
+    // Forzamos la recarga de la página actual para limpiar estados de memoria RAM en React
+    window.location.href = window.location.pathname;
   }, []);
 
   const cartCount = useMemo(

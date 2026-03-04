@@ -57,8 +57,10 @@ export default function AdminLayout() {
     toast.warning("Sesión cerrada por inactividad");
     await signOut(auth);
     sessionStorage.removeItem("shopUser");
-    navigate("/login");
-  }, [navigate]);
+    localStorage.removeItem("shopUser");
+    window.dispatchEvent(new Event("auth-change"));
+    window.location.href = "/";
+  }, []);
 
   useIdleTimer({
     timeout: 1000 * 60 * 15, // 15 minutos
@@ -107,10 +109,12 @@ export default function AdminLayout() {
   }, []);
 
   const handleLogout = async () => {
-    if (window.confirm("¿Cerrar sesión?")) {
+    if (window.confirm("¿Cerrar sesión del administrador? Saldrás de toda la plataforma.")) {
       await signOut(auth);
       sessionStorage.removeItem("shopUser");
-      navigate("/login");
+      localStorage.removeItem("shopUser");
+      window.dispatchEvent(new Event("auth-change"));
+      window.location.href = "/";
     }
   };
 

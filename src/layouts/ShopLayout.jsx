@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -63,6 +63,36 @@ export default function ShopLayout() {
 
   // Estado para el Modal de Login (Controlado localmente o via evento)
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  // --- INTERCEPTAR BOTÓN ATRÁS DE ANDROID (CARRITO) ---
+  const wasCartOpen = useRef(false);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (wasCartOpen.current) {
+        // El usuario presionó atrás mientras el carrito estaba abierto
+        wasCartOpen.current = false;
+        setIsCartOpen(false);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (isCartOpen && !wasCartOpen.current) {
+      // Se abre el carrito: empujar un estado silencioso
+      window.history.pushState({ modal: "cart" }, "");
+      wasCartOpen.current = true;
+    } else if (!isCartOpen && wasCartOpen.current) {
+      // Se cerró mediante botón 'X' o por código UI, sin ser 'Atrás'
+      wasCartOpen.current = false;
+      // Remueve estado silencioso sin navegar, previniendo doble click atrás futuro
+      if (window.history.state?.modal === "cart") {
+        window.history.back();
+      }
+    }
+  }, [isCartOpen]);
 
   // --- EFECTO PARA CACHEAR LA CONFIGURACIÓN (LOGO Y BANNERS) ---
   const [topBar, setTopBar] = useState(null);
@@ -805,8 +835,8 @@ export default function ShopLayout() {
                   <div
                     onClick={() => setSelectedPayment({ type: "Bold", id: "bold" })}
                     className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedPayment?.id === "bold"
-                        ? "bg-indigo-50 border-indigo-500 ring-1"
-                        : "bg-white border-slate-200"
+                      ? "bg-indigo-50 border-indigo-500 ring-1"
+                      : "bg-white border-slate-200"
                       }`}
                   >
                     <div className="flex justify-between items-center">

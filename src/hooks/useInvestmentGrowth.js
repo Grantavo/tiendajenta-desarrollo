@@ -47,8 +47,15 @@ export const useInvestmentGrowth = (userId) => {
                     // Simular día por día para interés compuesto real
                     for (let i = 0; i < daysPassed; i++) {
                         const iterationDate = new Date(lastUpdate.getTime() + ((i + 1) * 24 * 60 * 60 * 1000));
-                        const day = iterationDate.getDate();
-                        const isNegativeDay = day % 7 === 0; // Días 7, 14, 21, 28 serán rojos (Pérdidas simuladas)
+
+                        const seedDate = iterationDate.toISOString().split('T')[0];
+                        let hash = 0;
+                        for (let k = 0; k < seedDate.length; k++) {
+                            hash = ((hash << 5) - hash) + seedDate.charCodeAt(k);
+                            hash |= 0;
+                        }
+                        const pseudoRandom = Math.abs(Math.sin(hash));
+                        const isNegativeDay = pseudoRandom < 0.15; // 15% chance de día rojo
 
                         let dailyRate = 0;
                         if (isNegativeDay) {

@@ -198,9 +198,15 @@ export default function InvestmentDashboard() {
 
   // EFECTO: Fluctuación del mercado en vivo
   useEffect(() => {
-    // Calculamos si hoy debe ser un día pesimista para la simulación
-    const today = new Date().getDate();
-    const isNegativeDay = today % 7 === 0; // Días 7, 14, 21, 28 serán rojos
+    // Función determinista para decidir si hoy el mercado "amaneció mal" (15% de probabilidad, impredecible de antemano)
+    const seedDate = new Date().toISOString().split('T')[0];
+    let hash = 0;
+    for (let i = 0; i < seedDate.length; i++) {
+      hash = ((hash << 5) - hash) + seedDate.charCodeAt(i);
+      hash |= 0;
+    }
+    const pseudoRandom = Math.abs(Math.sin(hash));
+    const isNegativeDay = pseudoRandom < 0.15; // 15% chance de día rojo
 
     if (!marketOpen) {
       setDailyRateUI(isNegativeDay ? -0.06 : 0.05);

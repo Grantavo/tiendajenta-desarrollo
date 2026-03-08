@@ -633,6 +633,30 @@ export default function AdminProducts() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
+                    <label className={labelClass}>Marca (Para SEO)</label>
+                    <input
+                      name="brand"
+                      type="text"
+                      value={formData.brand}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="Ej: Sony, Samsung, Jenta..."
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Referencia / SKU</label>
+                    <input
+                      name="reference"
+                      type="text"
+                      value={formData.reference}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="Ej: REF-001"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
                     <label className={labelClass}>Categoría (*)</label>
                     <select
                       name="categoryId"

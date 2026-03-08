@@ -233,8 +233,8 @@ export default function AdminProducts() {
         });
         toast.success("Producto publicado exitosamente 🚀");
 
-        const shareText = `        🔥 *¡Nuevo Producto!* 🔥\n\n            *${productData.title}*\n                🤑 $${productData.price.toLocaleString()}\n\n      👀 ¡Consíguelo ya en nuestra tienda!`;
-        const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        const shareText = `        \u{1F525} *¡Nuevo Producto!* \u{1F525}\n\n            *${productData.title}*\n                \u{1F911} $${productData.price.toLocaleString()}\n\n      \u{1F440} ¡Consíguelo ya en nuestra tienda!`;
+        const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
 
         setWhatsappShareData({
           title: productData.title,

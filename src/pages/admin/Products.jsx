@@ -16,7 +16,7 @@ import ExcelJS from "exceljs";
 
 import { toast } from "sonner";
 
-import { db } from "../../firebase/config";
+import { db, storage } from "../../firebase/config";
 import {
   collection,
   getDocs,
@@ -25,6 +25,11 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL
+} from "firebase/storage";
 
 const generateRandomRef = () => `REF-${Math.floor(Math.random() * 1000000)}`;
 
@@ -78,6 +83,7 @@ export default function AdminProducts() {
     expectedMargin: "",
   };
   const [formData, setFormData] = useState(initialForm);
+  const [uploadingImages, setUploadingImages] = useState([false, false, false, false]);
   const [whatsappShareData, setWhatsappShareData] = useState(null);
 
   const fetchProducts = useCallback(async () => {
@@ -161,21 +167,54 @@ export default function AdminProducts() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageUpload = (index, e) => {
+  const handleImageUpload = async (index, e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 1024 * 1024) {
-        return toast.warning("Imagen pesada", {
-          description: "Máximo 1MB recomendado",
-        });
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newImages = [...formData.images];
-        newImages[index] = reader.result;
-        setFormData((prev) => ({ ...prev, images: newImages }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Aunque ahora usamos Storage, mantenemos un límite razonable para no saturar el ancho de banda
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.warning("Imagen muy pesada", {
+        description: "Máximo 2MB permitido para optimizar la carga.",
+      });
+    }
+
+    try {
+      const newUploadStates = [...uploadingImages];
+      newUploadStates[index] = true;
+      setUploadingImages(newUploadStates);
+
+      const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      const storageRef = ref(storage, `products/${fileName}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        "state_changed",
+        null,
+        (error) => {
+          console.error("Error subiendo imagen:", error);
+          toast.error("Error al subir la imagen");
+          const resetStates = [...uploadingImages];
+          resetStates[index] = false;
+          setUploadingImages(resetStates);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+          setFormData((prev) => {
+            const newImages = [...prev.images];
+            newImages[index] = downloadURL;
+            return { ...prev, images: newImages };
+          });
+
+          const finalUploadStates = [...uploadingImages];
+          finalUploadStates[index] = false;
+          setUploadingImages(finalUploadStates);
+          toast.success("Imagen cargada correctamente");
+        }
+      );
+    } catch (error) {
+      console.error("Error en el proceso de subida:", error);
+      toast.error("Error inesperado al procesar la imagen");
     }
   };
 
@@ -867,15 +906,16 @@ export default function AdminProducts() {
                         key={index}
                         className="aspect-square relative group border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden"
                       >
-                        <label className="w-full h-full cursor-pointer">
-                          {formData.images[index] ? (
+                        <label className="w-full h-full cursor-pointer flex items-center justify-center bg-slate-50">
+                          {uploadingImages[index] ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-[10px] font-bold text-blue-600">Subiendo...</span>
+                            </div>
+                          ) : formData.images[index] ? (
                             <img
                               src={formData.images[index]}
-                              alt={
-                                (formData.title || "Producto") +
-                                " - Foto " +
-                                (index + 1)
-                              }
+                              alt={(formData.title || "Producto") + " - Foto " + (index + 1)}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -886,6 +926,7 @@ export default function AdminProducts() {
                             onChange={(e) => handleImageUpload(index, e)}
                             className="hidden"
                             accept="image/*"
+                            disabled={uploadingImages[index]}
                           />
                         </label>
                       </div>

@@ -12,8 +12,13 @@ import {
   Menu,
 } from "lucide-react";
 
-import { auth, db } from "../firebase/config";
+import { auth, db, storage } from "../firebase/config";
 import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL
+} from "firebase/storage";
 import { signOut } from "firebase/auth";
 import { toast } from "sonner";
 import useIdleTimer from "../hooks/useIdleTimer";
@@ -44,6 +49,7 @@ export default function AdminLayout() {
     users: [],
     orders: [],
   });
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   const [results, setResults] = useState({
     products: [],
     users: [],
@@ -121,21 +127,41 @@ export default function AdminLayout() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64String = reader.result;
-      const updatedUser = { ...currentUser, photoURL: base64String };
 
-      setCurrentUser(updatedUser);
-      sessionStorage.setItem("shopUser", JSON.stringify(updatedUser));
+    try {
+      setIsPhotoUploading(true);
+      const fileName = `profile_${currentUser.id || Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      const storageRef = ref(storage, `profiles/${fileName}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      if (currentUser.id) {
-        await updateDoc(doc(db, "users", currentUser.id), {
-          photoURL: base64String,
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+      uploadTask.on(
+        "state_changed",
+        null,
+        (error) => {
+          console.error(error);
+          toast.error("Error al subir foto");
+          setIsPhotoUploading(false);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          const updatedUser = { ...currentUser, photoURL: downloadURL };
+
+          setCurrentUser(updatedUser);
+          sessionStorage.setItem("shopUser", JSON.stringify(updatedUser));
+
+          if (currentUser.id) {
+            await updateDoc(doc(db, "users", currentUser.id), {
+              photoURL: downloadURL,
+            });
+          }
+          setIsPhotoUploading(false);
+          toast.success("Foto de perfil actualizada");
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      setIsPhotoUploading(false);
+    }
   };
 
   const handleSearch = (e) => {
@@ -271,7 +297,11 @@ export default function AdminLayout() {
                       onClick={() => fileInputRef.current.click()}
                     >
                       <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 overflow-hidden relative">
-                        {currentUser.photoURL ? (
+                        {isPhotoUploading ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/50">
+                            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : currentUser.photoURL ? (
                           <img
                             src={currentUser.photoURL}
                             className="w-full h-full object-cover"
@@ -280,9 +310,11 @@ export default function AdminLayout() {
                         ) : (
                           <User className="p-2" />
                         )}
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <Camera className="text-white" size={16} />
-                        </div>
+                        {!isPhotoUploading && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white" size={16} />
+                          </div>
+                        )}
                       </div>
                       <input
                         type="file"

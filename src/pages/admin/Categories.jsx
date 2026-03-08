@@ -12,7 +12,7 @@ import {
 // 1. IMPORTAR SONNER
 import { toast } from "sonner";
 
-import { db } from "../../firebase/config";
+import { db, storage } from "../../firebase/config";
 import {
   collection,
   getDocs,
@@ -21,6 +21,11 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL
+} from "firebase/storage";
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -60,6 +65,7 @@ export default function Categories() {
   const parentSelectRef = useRef("");
   const fileInputRef = useRef(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- FUNCIONES PARA ABRIR MODAL ---
   const openAddCategory = () => {
@@ -97,12 +103,40 @@ export default function Categories() {
     }, 200);
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.warning("Imagen pesada", {
+        description: "Máximo 2MB permitido.",
+      });
+    }
+
+    try {
+      setIsUploading(true);
+      const fileName = `cat_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      const storageRef = ref(storage, `categories/${fileName}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        "state_changed",
+        null,
+        (error) => {
+          console.error(error);
+          toast.error("Error al subir imagen");
+          setIsUploading(false);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          setImagePreview(downloadURL);
+          setIsUploading(false);
+          toast.success("Imagen cargada");
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      setIsUploading(false);
     }
   };
 
@@ -304,10 +338,10 @@ export default function Categories() {
                 ))}
                 {(!category.subcategories ||
                   category.subcategories.length === 0) && (
-                  <p className="text-xs text-slate-400 italic py-2 pl-2">
-                    Sin subcategorías
-                  </p>
-                )}
+                    <p className="text-xs text-slate-400 italic py-2 pl-2">
+                      Sin subcategorías
+                    </p>
+                  )}
               </div>
             </div>
           ))
@@ -335,64 +369,66 @@ export default function Categories() {
             <div className="p-6">
               {(modalType === "addCategory" ||
                 modalType === "editCategory") && (
-                <form
-                  onSubmit={
-                    modalType === "addCategory" ? handleAdd : handleUpdate
-                  }
-                  className="space-y-6"
-                >
-                  <div>
-                    <label className={labelClass}>Nombre (*)</label>
-                    <input
-                      ref={catNameRef}
-                      defaultValue={currentItem?.name || ""}
-                      type="text"
-                      required
-                      className={inputClass}
-                      placeholder="Ej: Ferretería"
-                      onChange={handleTextFormatting}
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Imagen (Opcional)</label>
-                    <div
-                      className="flex items-center gap-4 p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition cursor-pointer group"
-                      onClick={() => fileInputRef.current.click()}
-                    >
-                      {imagePreview ? (
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-16 h-16 object-cover rounded-lg shadow-sm"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-slate-300 transition">
-                          <ImageIcon size={24} />
-                        </div>
-                      )}
-                      <div className="flex-1 text-sm text-slate-500">
-                        <p className="font-medium text-blue-600 group-hover:underline">
-                          Subir imagen
-                        </p>
-                      </div>
+                  <form
+                    onSubmit={
+                      modalType === "addCategory" ? handleAdd : handleUpdate
+                    }
+                    className="space-y-6"
+                  >
+                    <div>
+                      <label className={labelClass}>Nombre (*)</label>
                       <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImageChange}
-                        accept="image/*"
-                        className="hidden"
+                        ref={catNameRef}
+                        defaultValue={currentItem?.name || ""}
+                        type="text"
+                        required
+                        className={inputClass}
+                        placeholder="Ej: Ferretería"
+                        onChange={handleTextFormatting}
+                        autoFocus
                       />
                     </div>
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow-lg shadow-blue-600/20"
-                  >
-                    {modalType === "addCategory" ? "Agregar" : "Guardar"}
-                  </button>
-                </form>
-              )}
+                    <div>
+                      <label className={labelClass}>Imagen (Opcional)</label>
+                      <div
+                        className="flex items-center gap-4 p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition cursor-pointer group"
+                        onClick={() => fileInputRef.current.click()}
+                      >
+                        {isUploading ? (
+                          <div className="w-16 h-16 border-2 border-blue-600 border-t-transparent rounded-lg animate-spin mx-auto"></div>
+                        ) : imagePreview ? (
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-slate-300 transition">
+                            <ImageIcon size={24} />
+                          </div>
+                        )}
+                        <div className="flex-1 text-sm text-slate-500">
+                          <p className="font-medium text-blue-600 group-hover:underline">
+                            Subir imagen
+                          </p>
+                        </div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleImageChange}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow-lg shadow-blue-600/20"
+                    >
+                      {modalType === "addCategory" ? "Agregar" : "Guardar"}
+                    </button>
+                  </form>
+                )}
               {(modalType === "addSub" || modalType === "editSub") && (
                 <form
                   onSubmit={modalType === "addSub" ? handleAdd : handleUpdate}

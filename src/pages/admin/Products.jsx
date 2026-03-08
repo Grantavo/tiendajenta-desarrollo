@@ -73,6 +73,7 @@ export default function AdminProducts() {
     bonusPoints: "",
     items: [],
     images: [null, null, null, null],
+    costPrice: "",
   };
   const [formData, setFormData] = useState(initialForm);
 
@@ -125,13 +126,13 @@ export default function AdminProducts() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Si es precio, limpiamos caracteres no numéricos
-    if (name === "price" || name === "oldPrice" || name === "bonusPoints") {
-       // Eliminar todo lo que no sea dígito
-       const rawValue = value.replace(/\D/g, "");
-       setFormData((prev) => ({ ...prev, [name]: rawValue }));
-       return;
+    if (name === "price" || name === "oldPrice" || name === "bonusPoints" || name === "costPrice") {
+      // Eliminar todo lo que no sea dígito
+      const rawValue = value.replace(/\D/g, "");
+      setFormData((prev) => ({ ...prev, [name]: rawValue }));
+      return;
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -190,6 +191,7 @@ export default function AdminProducts() {
         reference: finalRef,
         brand: formData.brand || "Genérica",
         bonusPoints: Number(formData.bonusPoints) || 0,
+        costPrice: Number(formData.costPrice) || 0,
         items: formData.items
           ? formData.items.filter((i) => i && i.trim() !== "")
           : [],
@@ -265,7 +267,7 @@ export default function AdminProducts() {
     const matchesSearch =
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.reference?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesCategory = selectedCategory ? p.categoryId == selectedCategory : true;
 
     return matchesSearch && matchesCategory;
@@ -331,7 +333,7 @@ export default function AdminProducts() {
             />
           </div>
           <div className="w-full md:w-48">
-             <select
+            <select
               className="w-full h-full p-3 md:p-2 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:border-blue-500"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -342,7 +344,7 @@ export default function AdminProducts() {
                   {cat.name}
                 </option>
               ))}
-            </select>         
+            </select>
           </div>
         </div>
 
@@ -357,6 +359,7 @@ export default function AdminProducts() {
                 <th className="px-6 py-4">Ref/Marca</th>
                 <th className="px-6 py-4">Categoría</th>
                 <th className="px-6 py-4">Stock</th>
+                <th className="px-6 py-4">Rentabilidad</th>
                 <th className="px-6 py-4 text-center">Destacado</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
@@ -425,14 +428,29 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-6 py-3">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-bold ${
-                          product.stock > 0
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
+                        className={`px-2 py-1 rounded-full text-xs font-bold ${product.stock > 0
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                          }`}
                       >
                         {product.stock > 0 ? `${product.stock} un.` : "Agotado"}
                       </span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <div className="flex flex-col">
+                        {product.costPrice && product.price > 0 ? (
+                          <>
+                            <span className="text-xs font-bold text-slate-700">
+                              Ganancia: {formatPrice(product.price - product.costPrice)}
+                            </span>
+                            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded w-fit mt-1">
+                              Margen {Math.round(((product.price - product.costPrice) / product.price) * 100)}%
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-400">Sin datos</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-3 text-center">
                       {product.bestSeller === "si" && (
@@ -463,74 +481,84 @@ export default function AdminProducts() {
         {/* VISTA MÓVIL (CARDS) */}
         <div className="md:hidden flex flex-col divide-y divide-slate-100">
           {loading ? (
-             <div className="text-center py-12 text-slate-400 animate-pulse">
-                Cargando productos...
-             </div>
+            <div className="text-center py-12 text-slate-400 animate-pulse">
+              Cargando productos...
+            </div>
           ) : filteredProducts.length === 0 ? (
-             <div className="text-center py-10 text-slate-400 italic">
-                No se encontraron productos.
-             </div>
+            <div className="text-center py-10 text-slate-400 italic">
+              No se encontraron productos.
+            </div>
           ) : (
             filteredProducts.map((product) => (
               <div key={product.id} className="p-4 flex gap-4">
                 <div className="w-24 h-24 flex-shrink-0 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative">
-                   {product.images[0] ? (
-                      <img 
-                        src={product.images[0]} 
-                        className="w-full h-full object-cover" 
-                        alt="Prod" 
-                      />
-                   ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-300">
-                         <ImageIcon size={24} />
-                      </div>
-                   )}
-                   {product.bestSeller === "si" && (
-                      <div className="absolute top-0 right-0 bg-yellow-400 text-white p-1 rounded-bl-lg shadow-sm">
-                         <span className="text-[10px] font-bold">★</span>
-                      </div>
-                   )}
+                  {product.images[0] ? (
+                    <img
+                      src={product.images[0]}
+                      className="w-full h-full object-cover"
+                      alt="Prod"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      <ImageIcon size={24} />
+                    </div>
+                  )}
+                  {product.bestSeller === "si" && (
+                    <div className="absolute top-0 right-0 bg-yellow-400 text-white p-1 rounded-bl-lg shadow-sm">
+                      <span className="text-[10px] font-bold">★</span>
+                    </div>
+                  )}
                 </div>
-                
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                   <div>
-                      <h3 className="font-bold text-slate-800 text-sm leading-tight mb-1 truncate">
-                        {product.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mb-2">
-                         <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                            {categories.find(c => c.id == product.categoryId)?.name || "Sin Cat."}
-                         </span>
-                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${product.stock > 0 ? "border-green-200 text-green-700 bg-green-50" : "border-red-200 text-red-700 bg-red-50"}`}>
-                            {product.stock} un.
-                         </span>
-                      </div>
-                      <div className="flex items-end gap-2">
-                         <span className="font-black text-slate-800">
-                            {formatPrice(product.price)}
-                         </span>
-                         {product.oldPrice > product.price && (
-                           <span className="text-xs text-slate-400 line-through mb-0.5">
-                             {formatPrice(product.oldPrice)}
-                           </span>
-                         )}
-                      </div>
-                   </div>
 
-                   <div className="flex justify-end gap-3 mt-2">
-                      <button 
-                        onClick={() => openEdit(product)}
-                        className="flex-1 bg-blue-50 text-blue-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
-                      >
-                         <Edit2 size={14} /> Editar
-                      </button>
-                      <button 
-                         onClick={() => handleDelete(product.id)}
-                         className="flex-1 bg-red-50 text-red-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
-                      >
-                         <Trash2 size={14} /> Borrar
-                      </button>
-                   </div>
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm leading-tight mb-1 truncate">
+                      {product.title}
+                    </h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        {categories.find(c => c.id == product.categoryId)?.name || "Sin Cat."}
+                      </span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${product.stock > 0 ? "border-green-200 text-green-700 bg-green-50" : "border-red-200 text-red-700 bg-red-50"}`}>
+                        {product.stock} un.
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <span className="font-black text-slate-800">
+                        {formatPrice(product.price)}
+                      </span>
+                      {product.oldPrice > product.price && (
+                        <span className="text-xs text-slate-400 line-through mb-0.5">
+                          {formatPrice(product.oldPrice)}
+                        </span>
+                      )}
+                    </div>
+                    {product.costPrice && product.price > 0 && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold">
+                          Ganancia: {formatPrice(product.price - product.costPrice)}
+                        </span>
+                        <span className="text-[9px] font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded border border-green-100">
+                          {Math.round(((product.price - product.costPrice) / product.price) * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-2">
+                    <button
+                      onClick={() => openEdit(product)}
+                      className="flex-1 bg-blue-50 text-blue-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                    >
+                      <Edit2 size={14} /> Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="flex-1 bg-red-50 text-red-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                    >
+                      <Trash2 size={14} /> Borrar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -605,13 +633,23 @@ export default function AdminProducts() {
                     </select>
                   </div>
                 </div>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className={labelClass}>Precio Real (*)</label>
+                    <label className={labelClass}>Precio de Compra</label>
+                    <input
+                      name="costPrice"
+                      type="text"
+                      value={formData.costPrice ? formatPrice(formData.costPrice) : ""}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="$ 0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Precio Real (Venta) (*)</label>
                     <input
                       name="price"
                       type="text"
-                      // Usamos formatPrice si hay valor, si no cadena vacía
                       value={formData.price ? formatPrice(formData.price) : ""}
                       onChange={handleInputChange}
                       required
@@ -620,7 +658,7 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Precio Antes</label>
+                    <label className={labelClass}>Precio Antes (Opcional)</label>
                     <div className="relative">
                       <input
                         name="oldPrice"
@@ -636,7 +674,7 @@ export default function AdminProducts() {
                           {Math.round(
                             ((formData.oldPrice - formData.price) /
                               formData.oldPrice) *
-                              100
+                            100
                           )}
                           %
                         </span>
@@ -644,6 +682,25 @@ export default function AdminProducts() {
                     </div>
                   </div>
                 </div>
+                {/* Visualización de Rentabilidad */}
+                {formData.price > 0 && formData.costPrice > 0 && formData.price >= formData.costPrice && (
+                  <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl flex items-center gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Ganancia Neta</span>
+                      <span className="text-emerald-700 font-black">{formatPrice(formData.price - formData.costPrice)}</span>
+                    </div>
+                    <div className="w-px h-8 bg-emerald-200"></div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Margen Rentabilidad</span>
+                      <span className="text-emerald-700 font-black">{Math.round(((formData.price - formData.costPrice) / formData.price) * 100)}%</span>
+                    </div>
+                  </div>
+                )}
+                {formData.price > 0 && formData.costPrice > 0 && formData.price < formData.costPrice && (
+                  <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-center gap-4">
+                    <span className="text-red-600 text-xs font-bold">⚠️ El precio de venta es menor al costo. ¡Estás perdiendo dinero!</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className={labelClass}>Stock (*)</label>
@@ -775,8 +832,8 @@ export default function AdminProducts() {
                 {loading
                   ? "Cargando..."
                   : editingId
-                  ? "Actualizar Producto"
-                  : "Publicar Producto"}
+                    ? "Actualizar Producto"
+                    : "Publicar Producto"}
               </button>
             </div>
           </div>

@@ -668,20 +668,20 @@ export default function AdminProducts() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
+                  <div className="flex flex-col h-full">
                     <label className={labelClass}>Precio de Compra</label>
                     <input
                       name="costPrice"
                       type="text"
                       value={formData.costPrice ? formatPrice(formData.costPrice) : ""}
                       onChange={handleInputChange}
-                      className={inputClass}
+                      className={`${inputClass} mt-auto`}
                       placeholder="$ 0"
                     />
                   </div>
-                  <div>
+                  <div className="flex flex-col h-full">
                     <label className={labelClass}>Rentabilidad %</label>
-                    <div className="relative">
+                    <div className="relative mt-auto">
                       <input
                         name="expectedMargin"
                         type="text"
@@ -693,7 +693,7 @@ export default function AdminProducts() {
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex flex-col h-full">
                     <label className={labelClass}>Precio (Venta) (*)</label>
                     <input
                       name="price"
@@ -701,13 +701,13 @@ export default function AdminProducts() {
                       value={formData.price ? formatPrice(formData.price) : ""}
                       onChange={handleInputChange}
                       required
-                      className={inputClass}
+                      className={`${inputClass} mt-auto`}
                       placeholder="$ 0"
                     />
                   </div>
-                  <div>
+                  <div className="flex flex-col h-full">
                     <label className={labelClass}>Precio Antes (Opcional)</label>
-                    <div className="relative">
+                    <div className="relative mt-auto">
                       <input
                         name="oldPrice"
                         type="text"

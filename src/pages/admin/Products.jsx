@@ -10,6 +10,7 @@ import {
   UploadCloud,
   Image as ImageIcon,
   Trophy,
+  Smartphone,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 
@@ -76,6 +77,7 @@ export default function AdminProducts() {
     costPrice: "",
   };
   const [formData, setFormData] = useState(initialForm);
+  const [whatsappShareData, setWhatsappShareData] = useState(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -202,14 +204,25 @@ export default function AdminProducts() {
       if (editingId) {
         await updateDoc(doc(db, "products", editingId), productData);
         toast.success("Producto actualizado correctamente ✅");
+        closeModal();
       } else {
         await addDoc(productsCollection, {
           ...productData,
           createdAt: new Date(),
         });
         toast.success("Producto publicado exitosamente 🚀");
+
+        const shareText = `🔥 ¡Nuevo Producto en Jenta!\n\n🛍️ *${productData.title}*\n💵 $${productData.price.toLocaleString()}\n\n¡Consíguelo ya en nuestra tienda!`;
+        const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+
+        setWhatsappShareData({
+          title: productData.title,
+          price: productData.price,
+          image: productData.images[0] || "",
+          shareUrl
+        });
+        closeModal();
       }
-      closeModal();
       fetchProducts();
     } catch {
       toast.error("Error al guardar en la nube");
@@ -834,6 +847,57 @@ export default function AdminProducts() {
                   : editingId
                     ? "Actualizar Producto"
                     : "Publicar Producto"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE WHATSAPP COMPARTIR ESTADO */}
+      {whatsappShareData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="p-5 border-b flex justify-between items-center bg-emerald-50">
+              <h3 className="font-bold text-lg text-emerald-800 flex items-center gap-2">
+                <Smartphone className="text-emerald-600" /> ¡Producto Publicado!
+              </h3>
+              <button
+                onClick={() => setWhatsappShareData(null)}
+                className="text-emerald-600 hover:bg-emerald-100 p-1 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-4 text-center">
+                Comparte este producto en tu <span className="font-bold text-emerald-600">Estado de WhatsApp</span> para que tus clientes lo vean:
+              </p>
+
+              <div className="border border-emerald-100 rounded-xl p-3 bg-emerald-50/50 mb-5 text-center">
+                {whatsappShareData.image ? (
+                  <img src={whatsappShareData.image} alt="Producto" className="w-24 h-24 object-contain mx-auto mb-3 rounded-lg bg-white p-1 shadow-sm" />
+                ) : (
+                  <div className="w-24 h-24 bg-white border border-dashed rounded-lg flex items-center justify-center mx-auto mb-3 text-xs text-slate-400">Sin foto</div>
+                )}
+                <div className="font-bold text-slate-800 text-sm leading-tight line-clamp-2">{whatsappShareData.title}</div>
+                <div className="text-emerald-600 font-black text-lg mt-1">${whatsappShareData.price.toLocaleString()}</div>
+              </div>
+
+              <a
+                href={whatsappShareData.shareUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setWhatsappShareData(null)}
+                className="w-full bg-[#25D366] text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(37,211,102,0.39)] hover:shadow-[0_6px_20px_rgba(37,211,102,0.23)] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                <Smartphone size={18} />
+                Compartir en mi Estado
+              </a>
+              <button
+                onClick={() => setWhatsappShareData(null)}
+                className="w-full mt-3 text-slate-400 hover:text-slate-600 text-sm font-bold py-2 transition-colors"
+              >
+                Ahora no
               </button>
             </div>
           </div>

@@ -233,7 +233,7 @@ export default function AdminProducts() {
         });
         toast.success("Producto publicado exitosamente 🚀");
 
-        const shareText = `        \u{1F525} *¡Nuevo Producto!* \u{1F525}\n\n            *${productData.title}*\n                \u{1F911} $${productData.price.toLocaleString()}\n\n      \u{1F440} ¡Consíguelo ya en nuestra tienda!`;
+        const shareText = `        \u{1F525} *¡Nuevo Producto!* \u{1F525}\n\n            *${productData.title}*\n                \u{1F911} $${productData.price.toLocaleString()}\n\n      \u{1F440} ¡Consíguelo ya en nuestra tienda!\n            👉 https://jenta.online`;
         const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
 
         setWhatsappShareData({

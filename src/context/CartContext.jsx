@@ -195,13 +195,15 @@ export function CartProvider({ children }) {
 
   // 6. ACCIONES
   const addToCart = useCallback(
-    async (product, quantityToAdd) => {
+    async (product, quantityToAdd, variant = null) => {
       const amount = Math.max(1, Number(quantityToAdd) || 1);
       const stockLimit = Number(product.stock) || 0;
       const email = user?.email;
+      // Si hay variante, usamos una clave compuesta para diferenciar el mismo producto en distintas variantes
+      const cartKey = variant ? `${product.id}_${variant}` : product.id;
 
       setCart((prev) => {
-        const idx = prev.findIndex((item) => item.id === product.id);
+        const idx = prev.findIndex((item) => item.cartKey === cartKey);
         let newCart = [...prev];
 
         if (idx >= 0) {
@@ -217,6 +219,7 @@ export function CartProvider({ children }) {
             return prev;
           }
           newCart.push({
+            cartKey,
             id: product.id,
             title: product.title,
             price: Number(product.price),
@@ -225,6 +228,7 @@ export function CartProvider({ children }) {
               : product.image,
             quantity: amount,
             stock: stockLimit,
+            ...(variant && { variant }),
           });
         }
 
@@ -235,7 +239,7 @@ export function CartProvider({ children }) {
             { merge: true },
           ).catch((e) => console.error("Error sync cart:", e));
         }
-        toast.success("Agregado al carrito");
+        toast.success(variant ? `"${variant}" agregado al carrito` : "Agregado al carrito");
         return newCart;
       });
     },
@@ -243,10 +247,11 @@ export function CartProvider({ children }) {
   );
 
   const removeFromCart = useCallback(
-    async (id) => {
+    async (key) => {
       const email = user?.email;
       setCart((prev) => {
-        const newCart = prev.filter((i) => i.id !== id);
+        // Busca por cartKey primero (nuevo), luego por id (retrocompatibilidad)
+        const newCart = prev.filter((i) => (i.cartKey || i.id) !== key);
         if (email)
           setDoc(doc(db, "carts", email), { items: newCart }, { merge: true });
         return newCart;

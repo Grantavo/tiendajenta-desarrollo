@@ -188,15 +188,15 @@ export default function ShopLayout() {
   }, []);
 
   // --- FUNCIÓN ACTUALIZAR CANTIDAD ---
-  const updateQty = (productId, delta) => {
-    const item = cart.find((i) => i.id === productId);
+  const updateQty = (cartKey, delta) => {
+    const item = cart.find((i) => (i.cartKey || i.id) === cartKey);
     if (!item) return;
 
     const newQty = (item.quantity || 1) + delta;
     const stockLimit = Number(item.stock) || 999;
 
     if (newQty < 1) {
-      removeFromCart(productId);
+      removeFromCart(cartKey);
       return;
     }
 
@@ -205,10 +205,10 @@ export default function ShopLayout() {
       return;
     }
 
-    // Remover el item y agregarlo con la nueva cantidad
-    removeFromCart(productId);
+    // Remover el item y agregarlo con la nueva cantidad preservando la variante
+    removeFromCart(cartKey);
     setTimeout(() => {
-      addToCart(item, newQty);
+      addToCart(item, newQty, item.variant || null);
     }, 0);
   };
 
@@ -507,7 +507,8 @@ export default function ShopLayout() {
 
     let message = `Hola, quiero realizar el siguiente pedido:\n\n`;
     cart.forEach((item) => {
-      message += `• ${item.quantity || 1}x ${item.title} - $${item.price.toLocaleString()}\n`;
+      const variantLabel = item.variant ? ` (${item.variant})` : "";
+      message += `• ${item.quantity || 1}x ${item.title}${variantLabel} - $${item.price.toLocaleString()}\n`;
     });
     message += `\nSubtotal: $${subtotal.toLocaleString()}`;
     if (appliedDiscount) {
@@ -711,6 +712,11 @@ export default function ShopLayout() {
                     <h4 className="font-bold text-slate-800 text-sm line-clamp-2">
                       {item.title}
                     </h4>
+                    {item.variant && (
+                      <span className="inline-block text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1">
+                        {item.variant}
+                      </span>
+                    )}
                     <div className="flex justify-between items-end mt-2">
                       <div className="flex flex-col">
                         <span className="text-[10px] text-slate-400 font-bold uppercase">
@@ -723,7 +729,7 @@ export default function ShopLayout() {
 
                       <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
                         <button
-                          onClick={() => updateQty(item.id, -1)}
+                          onClick={() => updateQty(item.cartKey || item.id, -1)}
                           className="p-1.5 hover:bg-gray-200 transition text-slate-600"
                         >
                           <Minus size={14} />
@@ -732,7 +738,7 @@ export default function ShopLayout() {
                           {item.quantity || 1}
                         </span>
                         <button
-                          onClick={() => updateQty(item.id, 1)}
+                          onClick={() => updateQty(item.cartKey || item.id, 1)}
                           className="p-1.5 hover:bg-gray-200 transition text-slate-600"
                         >
                           <Plus size={14} />
@@ -740,7 +746,7 @@ export default function ShopLayout() {
                       </div>
 
                       <button
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.cartKey || item.id)}
                         className="text-red-400 hover:text-red-600 p-1"
                       >
                         <Trash2 size={16} />

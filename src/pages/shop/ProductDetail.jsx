@@ -25,6 +25,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
   // Configuración de Puntos
   const [loyaltyConfig, setLoyaltyConfig] = useState({
@@ -145,21 +146,21 @@ export default function ProductDetail() {
   };
 
   const handleWhatsApp = () => {
-    const message = `Hola, me interesa el producto: *${
-      product.title
-    }* que vi en la web por $${new Intl.NumberFormat("es-CO").format(
-      price,
-    )}. ¿Está disponible?`;
+    const message = `Hola, me interesa el producto: *${product.title
+      }* que vi en la web por $${new Intl.NumberFormat("es-CO").format(
+        price,
+      )}. ¿Está disponible?`;
     window.open(
       `https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`,
       "_blank",
     );
   };
 
+  const hasVariants = product?.items && product.items.length > 0;
+
   const handleAddToCart = () => {
     if (product && quantity > 0) {
-      // FIX: Enviar product puro y luego la cantidad como segundo argumento
-      addToCart(product, quantity);
+      addToCart(product, quantity, selectedVariant);
     }
   };
 
@@ -230,11 +231,10 @@ export default function ProductDetail() {
                   <button
                     key={idx}
                     onClick={() => setActiveImage(idx)}
-                    className={`w-20 h-20 flex-shrink-0 rounded-xl border-2 overflow-hidden transition-all ${
-                      activeImage === idx
+                    className={`w-20 h-20 flex-shrink-0 rounded-xl border-2 overflow-hidden transition-all ${activeImage === idx
                         ? "border-blue-600 scale-105 shadow-md"
                         : "border-transparent hover:border-slate-300 opacity-70 hover:opacity-100"
-                    }`}
+                      }`}
                   >
                     <img
                       src={img}
@@ -293,6 +293,36 @@ export default function ProductDetail() {
 
             <div className="h-px bg-slate-100 w-full mb-6"></div>
 
+            {/* SECCIÓN DE VARIANTES */}
+            {hasVariants && (
+              <div className="mb-6">
+                <p className="text-sm font-bold text-slate-700 mb-3">
+                  Selecciona una opción:
+                  {selectedVariant && (
+                    <span className="ml-2 text-blue-600 font-bold">{selectedVariant}</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {product.items.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setSelectedVariant(item === selectedVariant ? null : item)}
+                      className={`px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all ${selectedVariant === item
+                          ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-500/30"
+                          : "border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-600"
+                        }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+                {!selectedVariant && (
+                  <p className="text-xs text-amber-600 mt-2 font-medium">⚠️ Debes seleccionar una opción para continuar.</p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3 mb-8 text-sm text-slate-600">
               <div className="flex justify-between max-w-xs border-b border-slate-50 pb-2">
                 <span className="font-bold text-slate-800">Referencia:</span>
@@ -348,7 +378,11 @@ export default function ProductDetail() {
             <div className="space-y-3">
               <button
                 onClick={handleAddToCart}
-                className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
+                disabled={hasVariants && !selectedVariant}
+                className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-xl transform ${hasVariants && !selectedVariant
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    : "bg-slate-900 text-white hover:bg-black hover:shadow-2xl hover:-translate-y-1"
+                  }`}
               >
                 <ShoppingCart size={20} /> Agregar al Carrito
               </button>

@@ -75,6 +75,7 @@ export default function AdminProducts() {
     items: [],
     images: [null, null, null, null],
     costPrice: "",
+    expectedMargin: "",
   };
   const [formData, setFormData] = useState(initialForm);
   const [whatsappShareData, setWhatsappShareData] = useState(null);
@@ -129,11 +130,31 @@ export default function AdminProducts() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    // Si es precio, limpiamos caracteres no numéricos
-    if (name === "price" || name === "oldPrice" || name === "bonusPoints" || name === "costPrice") {
+    // Si es precio o margen, limpiamos caracteres no numéricos
+    if (name === "price" || name === "oldPrice" || name === "bonusPoints" || name === "costPrice" || name === "expectedMargin") {
       // Eliminar todo lo que no sea dígito
       const rawValue = value.replace(/\D/g, "");
-      setFormData((prev) => ({ ...prev, [name]: rawValue }));
+
+      setFormData((prev) => {
+        const newData = { ...prev, [name]: rawValue };
+
+        // Si cambia costo o margen, recalcular precio de venta automáticamente
+        if (name === "costPrice" || name === "expectedMargin") {
+          const cost = Number(name === "costPrice" ? rawValue : prev.costPrice) || 0;
+          const margin = Number(name === "expectedMargin" ? rawValue : prev.expectedMargin) || 0;
+          if (cost > 0 && margin > 0) {
+            // Precio Venta = Costo + (Costo * margen / 100)
+            newData.price = Math.round(cost * (1 + margin / 100)).toString();
+          }
+        }
+
+        // Si el usuario cambia el precio de venta manualmente, borramos el "margen esperado" para no tener inconsistencias
+        if (name === "price") {
+          newData.expectedMargin = "";
+        }
+
+        return newData;
+      });
       return;
     }
 
@@ -646,7 +667,7 @@ export default function AdminProducts() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className={labelClass}>Precio de Compra</label>
                     <input
@@ -659,7 +680,21 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Precio Real (Venta) (*)</label>
+                    <label className={labelClass}>Rentabilidad %</label>
+                    <div className="relative">
+                      <input
+                        name="expectedMargin"
+                        type="text"
+                        value={formData.expectedMargin || ""}
+                        onChange={handleInputChange}
+                        className={inputClass}
+                        placeholder="Ej: 30"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Precio (Venta) (*)</label>
                     <input
                       name="price"
                       type="text"

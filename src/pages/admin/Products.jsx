@@ -233,7 +233,7 @@ export default function AdminProducts() {
         });
         toast.success("Producto publicado exitosamente 🚀");
 
-        const shareText = `🔥 ¡Nuevo Producto en Jenta!\n\n🛍️ *${productData.title}*\n💵 $${productData.price.toLocaleString()}\n\n¡Consíguelo ya en nuestra tienda!`;
+        const shareText = `*¡Nuevo Producto en Jenta!*\n\n🔸 *${productData.title}*\n🔸 $${productData.price.toLocaleString()}\n\n¡Consíguelo ya en nuestra tienda!`;
         const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
         setWhatsappShareData({

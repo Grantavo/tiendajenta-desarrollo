@@ -393,7 +393,7 @@ export default function AdminProducts() {
                 <th className="px-6 py-4">Ref/Marca</th>
                 <th className="px-6 py-4">Categoría</th>
                 <th className="px-6 py-4">Stock</th>
-                <th className="px-6 py-4">Rentabilidad</th>
+                <th className="px-6 py-4">Margen Real</th>
                 <th className="px-6 py-4 text-center">Destacado</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
@@ -680,7 +680,7 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div className="flex flex-col h-full">
-                    <label className={labelClass}>Rentabilidad %</label>
+                    <label className={labelClass} title="Porcentaje de aumento calculado a partir del precio de costo">Aumento s/ Costo %</label>
                     <div className="relative mt-auto">
                       <input
                         name="expectedMargin"
@@ -739,7 +739,7 @@ export default function AdminProducts() {
                     </div>
                     <div className="w-px h-8 bg-emerald-200"></div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Margen Rentabilidad</span>
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase" title="Porcentaje real de ganancia descontando el costo del precio de venta">Margen Real Ganancia</span>
                       <span className="text-emerald-700 font-black">{Math.round(((formData.price - formData.costPrice) / formData.price) * 100)}%</span>
                     </div>
                   </div>

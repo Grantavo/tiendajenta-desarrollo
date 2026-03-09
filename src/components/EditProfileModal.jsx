@@ -68,8 +68,14 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
       toast.success("Perfil actualizado correctamente");
       window.location.reload();
     } catch (error) {
-      console.error(error);
-      toast.error("Error al actualizar perfil");
+      console.error("🔴 Error al actualizar perfil:", error);
+      if (error.code === "permission-denied") {
+        toast.error("No tienes permisos para editar este perfil.");
+      } else {
+        toast.error("Error al actualizar perfil", {
+          description: error.message
+        });
+      }
     } finally {
       setLoading(false);
     }

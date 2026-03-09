@@ -75,7 +75,7 @@ service cloud.firestore {
       allow read: if isOwner(clientId) || isAdmin();
       allow create: if isOwner(clientId) || isAdmin();
       allow update: if isAdmin() ||
-        (isOwner(clientId) &&
+        ((isOwner(clientId) || (isAuthenticated() && request.auth.token.email == resource.data.email)) &&
          !request.resource.data.diff(resource.data)
            .affectedKeys()
            .hasAny(['walletBalance', 'wallet', 'balance', 'loyaltyPoints', 'points']));

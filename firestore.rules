@@ -75,10 +75,10 @@ service cloud.firestore {
       allow read: if isOwner(clientId) || isAdmin();
       allow create: if isOwner(clientId) || isAdmin();
       allow update: if isAdmin() ||
-        ((isOwner(clientId) || (isAuthenticated() && request.auth.token.email == resource.data.email)) &&
+        ((isOwner(clientId) || (isAuthenticated() && request.auth.token.email.lower() == resource.data.get('email', '').lower())) &&
          !request.resource.data.diff(resource.data)
            .affectedKeys()
-           .hasAny(['walletBalance', 'wallet', 'balance', 'loyaltyPoints', 'points']));
+           .hasAny(['walletBalance', 'wallet', 'balance', 'loyaltyPoints', 'points', 'investmentBalance', 'lastInvestmentUpdate', 'role']));
       allow delete: if isAdmin();
     }
 

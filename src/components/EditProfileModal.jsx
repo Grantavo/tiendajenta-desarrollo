@@ -69,6 +69,12 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
       window.location.reload();
     } catch (error) {
       console.error("🔴 Error al actualizar perfil:", error);
+      console.error("DEBUG:", {
+        id: user.id,
+        uid: auth.currentUser?.uid,
+        emailAuth: auth.currentUser?.email,
+        emailField: formData.email
+      });
       if (error.code === "permission-denied") {
         toast.error("No tienes permisos para editar este perfil.");
       } else {

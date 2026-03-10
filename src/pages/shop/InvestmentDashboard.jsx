@@ -347,6 +347,79 @@ export default function InvestmentDashboard() {
             </div>
           </div>
         </div>
+
+        {/* 1.6 BANNER PROMOCIONAL APP (NUEVO - MODELO HÍBRIDO) */}
+        <div className="mt-8 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-6 md:p-10 shadow-2xl relative overflow-hidden group border border-indigo-400/20">
+          {/* Decoración abstracta de fondo */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/15 transition-all duration-700"></div>
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 md:gap-12">
+            <div className="flex-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/30 backdrop-blur-md rounded-full text-indigo-100 text-[10px] md:text-sm font-bold uppercase tracking-widest mb-4 border border-indigo-400/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Nueva Experiencia Móvil
+              </div>
+              <h2 className="text-2xl md:text-4xl font-black text-white mb-4 leading-tight">
+                Gestiona tu Capital con <span className="text-emerald-400">Total Libertad</span>
+              </h2>
+              <p className="text-indigo-100/80 text-sm md:text-lg mb-8 leading-relaxed max-w-2xl font-medium">
+                Descarga la App de <span className="text-white font-bold">Grupo Jenta</span> para recibir notificaciones en tiempo real, ver el historial detallado de tus rendimientos diarios y gestionar retiros desde la palma de tu mano.
+              </p>
+
+              {/* Botones de Descarga (Simulados) */}
+              <div className="flex flex-wrap justify-center lg:justify-start gap-4">
+                <button className="flex items-center gap-3 bg-black text-white px-6 py-3 rounded-2xl hover:bg-slate-900 transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-xl pointer-events-none opacity-80">
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <svg viewBox="0 0 512 512" width="24" height="24" fill="currentColor">
+                      <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l236.6-236.6L47 0zm393.5 139.7l-58-33.3-67.3 67.3 65.2 65.2 60.1-34.4c12.3-7 20.3-19.3 20.3-33.5.1-14.1-8-26.4-20.3-31.3zM283.6 275.4L47 512l220.7-126.6 60.1-60.1-44.2-49.9z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase font-bold opacity-60 leading-none mb-0.5">Consíguelo en</p>
+                    <p className="text-base font-black leading-none">Google Play</p>
+                  </div>
+                </button>
+
+                <button className="flex items-center gap-3 bg-black text-white px-6 py-3 rounded-2xl hover:bg-slate-900 transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-xl pointer-events-none opacity-80">
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <svg viewBox="0 0 384 512" width="24" height="24" fill="currentColor">
+                      <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase font-bold opacity-60 leading-none mb-0.5">Descargar en</p>
+                    <p className="text-base font-black leading-none">App Store</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Ilustración de Mockup Móvil Simulado */}
+            <div className="hidden lg:flex w-64 h-[400px] bg-slate-900 rounded-[3rem] border-8 border-slate-800 shadow-2xl relative items-center justify-center rotate-3 group-hover:rotate-0 transition-all duration-500 overflow-hidden shrink-0">
+              <div className="absolute top-2 w-16 h-4 bg-slate-800 rounded-full"></div>
+              {/* Contenido simulado de la app */}
+              <div className="w-full h-full p-6 pt-12 space-y-4">
+                <div className="w-full h-24 bg-indigo-500/20 rounded-2xl flex flex-col justify-center p-4">
+                  <div className="w-12 h-2 bg-indigo-400/40 rounded mb-2"></div>
+                  <div className="w-20 h-4 bg-emerald-400 rounded"></div>
+                </div>
+                <div className="w-full h-40 bg-slate-800 rounded-2xl relative p-4 overflow-hidden">
+                  <div className="w-full h-full border-b border-l border-white/5 flex items-end">
+                    <div className="w-4 h-12 bg-emerald-400/30 mx-1 rounded-t"></div>
+                    <div className="w-4 h-16 bg-emerald-400/50 mx-1 rounded-t"></div>
+                    <div className="w-4 h-24 bg-emerald-400 mx-1 rounded-t"></div>
+                    <div className="w-4 h-20 bg-emerald-400/70 mx-1 rounded-t"></div>
+                  </div>
+                </div>
+                <div className="w-full h-12 bg-white rounded-xl flex items-center justify-center">
+                  <div className="w-20 h-2 bg-slate-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* 1.5 SECCIÓN SIMULADOR (NUEVO) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
           {/* TARJETA DE SIMULACIÓN */}
@@ -422,6 +495,14 @@ export default function InvestmentDashboard() {
                 <p className="text-[10px] text-emerald-600/50 mt-3 font-medium pt-3 border-t border-emerald-200/50 dash-border">
                   *Proyección basada en tasa actual del {(projectedRate * 100).toFixed(2)}% mensual compuesta.
                 </p>
+                <div className="mt-4 p-3 bg-white/50 rounded-xl border border-emerald-100 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+                    <TrendingUp size={14} />
+                  </div>
+                  <p className="text-[10px] text-slate-600 leading-tight">
+                    <span className="font-bold text-indigo-700">¿Quieres empezar hoy?</span> Descarga la App para gestionar tu inversión real.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

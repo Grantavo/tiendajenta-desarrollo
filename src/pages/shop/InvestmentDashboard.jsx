@@ -348,78 +348,49 @@ export default function InvestmentDashboard() {
           </div>
         </div>
 
-        {/* 1.6 BANNER PROMOCIONAL APP (NUEVO - MODELO HÍBRIDO) */}
-        <div className="mt-8 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-6 md:p-10 shadow-2xl relative overflow-hidden group border border-indigo-400/20">
-          {/* Decoración abstracta de fondo */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/15 transition-all duration-700"></div>
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+        {/* SECCIÓN HÍBRIDA: APP + SIMULADOR */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          {/* BANNER PROMOCIONAL APP */}
+          <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-6 md:p-10 shadow-2xl relative overflow-hidden group border border-indigo-400/20">
+            {/* Decoración abstracta de fondo */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/15 transition-all duration-700"></div>
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
 
-          <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 md:gap-12">
-            <div className="flex-1 text-center lg:text-left">
+            <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/30 backdrop-blur-md rounded-full text-indigo-100 text-[10px] md:text-sm font-bold uppercase tracking-widest mb-4 border border-indigo-400/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 Nueva Experiencia Móvil
               </div>
-              <h2 className="text-2xl md:text-4xl font-black text-white mb-4 leading-tight">
+              <h2 className="text-xl md:text-3xl font-black text-white mb-4 leading-tight">
                 Gestiona tu Capital con <span className="text-emerald-400">Total Libertad</span>
               </h2>
-              <p className="text-indigo-100/80 text-sm md:text-lg mb-8 leading-relaxed max-w-2xl font-medium">
-                Obtén nuestra app oficial de <span className="text-white font-bold">Grupo Jenta</span> instalando directamente el APK. Control total de tus ganancias, historial diario y gestión de capital desde tu celular, sin intermediarios.
+              <p className="text-indigo-100/70 text-xs md:text-base mb-8 leading-relaxed font-medium">
+                Obtén nuestra app oficial de <span className="text-white font-bold">Grupo Jenta</span> instalando el APK. Control total y notificaciones reales.
               </p>
 
               {/* Botón de Descarga Directa APK */}
-              <div className="flex flex-wrap justify-center lg:justify-start gap-4">
-                <a
-                  href="/downloads/jenta-app.apk"
-                  download
-                  className="flex items-center gap-4 bg-emerald-500 hover:bg-emerald-400 text-white px-8 py-4 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-xl shadow-emerald-500/20 group/btn"
-                >
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover/btn:rotate-12 transition-transform">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold opacity-80 leading-none mb-1">Disponible para Android</p>
-                    <p className="text-lg font-black leading-none tracking-tight">Descargar APK Gratis</p>
-                  </div>
-                </a>
-              </div>
-            </div>
-
-            {/* Ilustración de Mockup Móvil Simulado */}
-            <div className="hidden lg:flex w-64 h-[400px] bg-slate-900 rounded-[3rem] border-8 border-slate-800 shadow-2xl relative items-center justify-center rotate-3 group-hover:rotate-0 transition-all duration-500 overflow-hidden shrink-0">
-              <div className="absolute top-2 w-16 h-4 bg-slate-800 rounded-full"></div>
-              {/* Contenido simulado de la app */}
-              <div className="w-full h-full p-6 pt-12 space-y-4">
-                <div className="w-full h-24 bg-indigo-500/20 rounded-2xl flex flex-col justify-center p-4">
-                  <div className="w-12 h-2 bg-indigo-400/40 rounded mb-2"></div>
-                  <div className="w-20 h-4 bg-emerald-400 rounded"></div>
+              <a
+                href="/downloads/jenta-app.apk"
+                download
+                className="inline-flex items-center gap-4 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-4 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-xl shadow-emerald-500/20 group/btn"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover/btn:rotate-12 transition-transform">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
                 </div>
-                <div className="w-full h-40 bg-slate-800 rounded-2xl relative p-4 overflow-hidden">
-                  <div className="w-full h-full border-b border-l border-white/5 flex items-end">
-                    <div className="w-4 h-12 bg-emerald-400/30 mx-1 rounded-t"></div>
-                    <div className="w-4 h-16 bg-emerald-400/50 mx-1 rounded-t"></div>
-                    <div className="w-4 h-24 bg-emerald-400 mx-1 rounded-t"></div>
-                    <div className="w-4 h-20 bg-emerald-400/70 mx-1 rounded-t"></div>
-                  </div>
+                <div className="text-left">
+                  <p className="text-[10px] uppercase font-bold opacity-80 leading-none mb-1">Android</p>
+                  <p className="text-base font-black leading-none tracking-tight">Descargar APK</p>
                 </div>
-                <div className="w-full h-12 bg-white rounded-xl flex items-center justify-center">
-                  <div className="w-20 h-2 bg-slate-200 rounded"></div>
-                </div>
-              </div>
+              </a>
             </div>
           </div>
-        </div>
 
-        {/* 1.5 SECCIÓN SIMULADOR (NUEVO) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
           {/* TARJETA DE SIMULACIÓN */}
-          {/* TARJETA DE SIMULACIÓN */}
-          {/* TARJETA DE SIMULACIÓN */}
-          <div className="lg:col-span-1 bg-white border border-indigo-50 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+          <div className="bg-white border border-indigo-50 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
             {/* Efecto de fondo sutil (Índigo para conectar con la marca) */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-[60px] opacity-60 group-hover:opacity-80 transition-opacity"></div>
 
@@ -499,47 +470,6 @@ export default function InvestmentDashboard() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* 2. GRÁFICO PRINCIPAL (Ahora ocupa 2 columnas) */}
-          <div className="lg:col-span-2 h-[420px] bg-white p-4 rounded-3xl border border-slate-100 shadow-sm relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#94a3b8' }}
-                  dy={10}
-                  hide // Ocultamos eje X si no hay datos relevantes
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1e293b',
-                    borderRadius: '12px',
-                    border: 'none',
-                    color: '#fff',
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                  }}
-                  itemStyle={{ color: '#fff' }}
-                  cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorValue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         </div>
 

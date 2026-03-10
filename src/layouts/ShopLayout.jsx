@@ -649,9 +649,13 @@ export default function ShopLayout() {
         </div>
       )}
 
-      <Navbar cartCount={cartCount} onOpenCart={() => setIsCartOpen(true)} />
+      <div className="max-w-[1440px] mx-auto w-full">
+        <Navbar cartCount={cartCount} onOpenCart={() => setIsCartOpen(true)} />
+      </div>
       <main className="flex-grow w-full">
-        <Outlet context={{ addToCart }} />
+        <div className="max-w-[1440px] mx-auto">
+          <Outlet context={{ addToCart }} />
+        </div>
       </main>
       <Footer />
 

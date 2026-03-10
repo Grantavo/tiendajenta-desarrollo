@@ -364,34 +364,28 @@ export default function InvestmentDashboard() {
                 Gestiona tu Capital con <span className="text-emerald-400">Total Libertad</span>
               </h2>
               <p className="text-indigo-100/80 text-sm md:text-lg mb-8 leading-relaxed max-w-2xl font-medium">
-                Descarga la App de <span className="text-white font-bold">Grupo Jenta</span> para recibir notificaciones en tiempo real, ver el historial detallado de tus rendimientos diarios y gestionar retiros desde la palma de tu mano.
+                Obtén nuestra app oficial de <span className="text-white font-bold">Grupo Jenta</span> instalando directamente el APK. Control total de tus ganancias, historial diario y gestión de capital desde tu celular, sin intermediarios.
               </p>
 
-              {/* Botones de Descarga (Simulados) */}
+              {/* Botón de Descarga Directa APK */}
               <div className="flex flex-wrap justify-center lg:justify-start gap-4">
-                <button className="flex items-center gap-3 bg-black text-white px-6 py-3 rounded-2xl hover:bg-slate-900 transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-xl pointer-events-none opacity-80">
-                  <div className="w-8 h-8 flex items-center justify-center">
-                    <svg viewBox="0 0 512 512" width="24" height="24" fill="currentColor">
-                      <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l236.6-236.6L47 0zm393.5 139.7l-58-33.3-67.3 67.3 65.2 65.2 60.1-34.4c12.3-7 20.3-19.3 20.3-33.5.1-14.1-8-26.4-20.3-31.3zM283.6 275.4L47 512l220.7-126.6 60.1-60.1-44.2-49.9z" />
+                <a
+                  href="/downloads/jenta-app.apk"
+                  download
+                  className="flex items-center gap-4 bg-emerald-500 hover:bg-emerald-400 text-white px-8 py-4 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-xl shadow-emerald-500/20 group/btn"
+                >
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover/btn:rotate-12 transition-transform">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold opacity-60 leading-none mb-0.5">Consíguelo en</p>
-                    <p className="text-base font-black leading-none">Google Play</p>
+                    <p className="text-[10px] uppercase font-bold opacity-80 leading-none mb-1">Disponible para Android</p>
+                    <p className="text-lg font-black leading-none tracking-tight">Descargar APK Gratis</p>
                   </div>
-                </button>
-
-                <button className="flex items-center gap-3 bg-black text-white px-6 py-3 rounded-2xl hover:bg-slate-900 transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-xl pointer-events-none opacity-80">
-                  <div className="w-8 h-8 flex items-center justify-center">
-                    <svg viewBox="0 0 384 512" width="24" height="24" fill="currentColor">
-                      <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold opacity-60 leading-none mb-0.5">Descargar en</p>
-                    <p className="text-base font-black leading-none">App Store</p>
-                  </div>
-                </button>
+                </a>
               </div>
             </div>
 

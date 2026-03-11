@@ -17,6 +17,7 @@ export default function BoldPaymentButton({
   apiKey,
   secretKey,
   redirectUrl,
+  customerData,
 }) {
   const containerRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -33,8 +34,9 @@ export default function BoldPaymentButton({
 
     const injectBoldScript = async () => {
       try {
-        // Firma de integridad: SHA-256(orderId + currency + amount + secretKey)
-        const rawString = `${orderId}COP${amount}${secretKey}`;
+        // Firma de integridad: SHA-256({ID}{Monto}{Divisa}{LlaveSecreta})
+        // Según documentación oficial: Identificador + Monto + Divisa + LlaveSecreta
+        const rawString = `${orderId}${amount}COP${secretKey}`;
         const signature = await sha256(rawString);
 
         if (!isMounted || !containerRef.current) return;
@@ -48,13 +50,17 @@ export default function BoldPaymentButton({
         script.id = "bold-payment-script";
         script.src =
           "https://checkout.bold.co/library/boldPaymentButton.js";
-        script.setAttribute("data-bold-button", "");
+        script.setAttribute("data-bold-button", "dark-L"); // Estilo Bold institucional, tamaño Grande
         script.setAttribute("data-order-id", orderId);
         script.setAttribute("data-currency", "COP");
         script.setAttribute("data-amount", String(amount));
         script.setAttribute("data-api-key", apiKey);
         script.setAttribute("data-integrity-signature", signature);
         script.setAttribute("data-redirection-url", redirectUrl);
+        script.setAttribute("data-render-mode", "embedded");
+        if (customerData) {
+          script.setAttribute("data-customer-data", customerData);
+        }
 
         script.onload = () => {
           if (isMounted) setLoading(false);

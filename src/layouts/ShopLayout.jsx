@@ -475,8 +475,16 @@ export default function ShopLayout() {
           tx.set(doc(db, "orders", newOrderId), orderData);
         });
 
-        // Redirect URL al thank-you con el orderId
-        const redirectUrl = `${window.location.origin}/thank-you?bold-order-id-jenta=${newOrderId}`;
+        // Datos del cliente para precargar en Bold
+        const customerData = {
+          email: session.email || "",
+          fullName: session.name || "Cliente",
+          phone: session.phone || "",
+          dialCode: "+57",
+        };
+
+        // Redirect URL al thank-you (Bold agregará bold-order-id y bold-tx-status)
+        const redirectUrl = `${window.location.origin}/thank-you`;
 
         setBoldPendingOrder({
           orderId: boldOrderId,
@@ -485,6 +493,7 @@ export default function ShopLayout() {
           secretKey: boldConfig.secretKey,
           redirectUrl,
           orderFirestoreId: newOrderId,
+          customerData: JSON.stringify(customerData),
         });
 
         toast.info("Selecciona Pagar con Bold para completar el pago.", {
@@ -875,6 +884,7 @@ export default function ShopLayout() {
                         apiKey={boldPendingOrder.apiKey}
                         secretKey={boldPendingOrder.secretKey}
                         redirectUrl={boldPendingOrder.redirectUrl}
+                        customerData={boldPendingOrder.customerData}
                       />
                     </div>
                   )}

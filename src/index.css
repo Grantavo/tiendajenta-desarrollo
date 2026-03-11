@@ -40,9 +40,8 @@
   animation: blob 7s infinite;
 }
 
-@media (min-width: 1024px) {
-  /* 
-    Nota: Se eliminó el zoom global en favor de contenedores Max-Width
-    para una experiencia más profesional y nítida.
-  */
-}
+/* 
+  DISEÑO RESPONSIVO PROFESIONAL:
+  Se eliminó el zoom global en favor de contenedores Max-Width en los layouts
+  para asegurar nitidez y elegibilidad en todas las pantallas.
+*/

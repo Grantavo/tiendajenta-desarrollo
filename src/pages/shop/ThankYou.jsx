@@ -8,13 +8,13 @@ export default function ThankYou() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Leer parámetros de la URL (vienen de Bold en el redirect)
+  // Leer parámetros de la URL (vienen de Bold en el redirect oficial)
   const params = new URLSearchParams(location.search);
-  const boldStatus = params.get("bold-order-status");       // "approved" | "declined" | etc.
-  const boldJentaOrderId = params.get("bold-order-id-jenta"); // nuestro ID interno
-  const boldTxId = params.get("bold-tx-id");                // ID de transacción Bold
+  const boldStatus = params.get("bold-tx-status");       // "approved" | "declined" | "rejected" | "failed"
+  const boldOrderId = params.get("bold-order-id");       // ID compuesto (ej: JENTA-1001-TIMESTAMP)
+  const boldTxId = params.get("bold-tx-id");             // ID único de transacción de Bold
 
-  // Datos de checkout normal (vienen via navigate state)
+  // Datos de checkout normal (vienen via navigate state si fue WhatsApp/Billetera)
   const state = location.state || {};
   const { orderId, total, items, paymentMethod } = state;
 
@@ -24,11 +24,16 @@ export default function ThankYou() {
 
   // Manejar resultado del pago Bold
   useEffect(() => {
-    if (!boldStatus || !boldJentaOrderId) return;
+    if (!boldStatus || !boldOrderId) return;
+    
+    // Extraer el ID real (nuestro ID secuencial) del boldOrderId
+    // Formato enviado: "JENTA-XXXX-TIMESTAMP"
+    const orderParts = boldOrderId.split("-");
+    const realOrderId = orderParts.length > 1 ? orderParts[1] : boldOrderId;
 
     const handleBoldResult = async () => {
       try {
-        const orderRef = doc(db, "orders", boldJentaOrderId);
+        const orderRef = doc(db, "orders", realOrderId);
         if (boldStatus === "approved") {
           await updateDoc(orderRef, {
             status: "Procesando",
@@ -52,7 +57,7 @@ export default function ThankYou() {
     };
 
     handleBoldResult();
-  }, [boldStatus, boldJentaOrderId, boldTxId]);
+  }, [boldStatus, boldOrderId, boldTxId]);
 
   // Redirect si no hay datos ni params Bold
   useEffect(() => {
@@ -114,7 +119,9 @@ export default function ThankYou() {
   }
 
   // Éxito (pago normal o Bold aprobado)
-  const displayOrderId = boldJentaOrderId || orderId;
+  const orderParts = boldOrderId ? boldOrderId.split("-") : [];
+  const realOrderId = orderParts.length > 1 ? orderParts[1] : boldOrderId;
+  const displayOrderId = realOrderId || orderId;
   const needsVerification = paymentMethod === "WhatsApp" || paymentMethod === "Transferencia";
   const isBoldSuccess = boldStatus === "approved";
 

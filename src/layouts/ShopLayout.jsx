@@ -962,10 +962,13 @@ export default function ShopLayout() {
                 selectedPayment?.type === "Billetera" &&
                 Number(user?.balance || 0) < total
               }
-              className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className={`w-full text-white py-4 rounded-xl font-bold text-lg transition flex items-center justify-center gap-2 disabled:opacity-50 ${selectedPayment?.id === "bold" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-green-600 hover:bg-green-700"}`}
             >
               {user ? (
-                <>Completar Pedido <ArrowRight size={20} /></>
+                <>
+                  {selectedPayment?.id === "bold" ? "Preparar Pago con Bold" : "Completar Pedido"}{" "}
+                  <ArrowRight size={20} />
+                </>
               ) : (
                 <>Iniciar Sesión para Comprar <User size={20} /></>
               )}

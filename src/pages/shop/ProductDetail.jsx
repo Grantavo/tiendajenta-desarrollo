@@ -293,35 +293,6 @@ export default function ProductDetail() {
 
             <div className="h-px bg-slate-100 w-full mb-6"></div>
 
-            {/* SECCIÓN DE VARIANTES */}
-            {hasVariants && (
-              <div className="mb-6">
-                <p className="text-sm font-bold text-slate-700 mb-3">
-                  Selecciona una opción:
-                  {selectedVariant && (
-                    <span className="ml-2 text-blue-600 font-bold">{selectedVariant}</span>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {product.items.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setSelectedVariant(item === selectedVariant ? null : item)}
-                      className={`px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all ${selectedVariant === item
-                          ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                          : "border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-600"
-                        }`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-                {!selectedVariant && (
-                  <p className="text-xs text-amber-600 mt-2 font-medium">⚠️ Debes seleccionar una opción para continuar.</p>
-                )}
-              </div>
-            )}
 
             <div className="space-y-3 mb-8 text-sm text-slate-600">
               <div className="flex justify-between max-w-xs border-b border-slate-50 pb-2">
@@ -338,7 +309,7 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl mb-8 border border-slate-100">
+            <div className="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100">
               <h3 className="font-bold text-slate-800 mb-2 text-sm uppercase">
                 Sobre este producto:
               </h3>
@@ -347,6 +318,39 @@ export default function ProductDetail() {
                   "Producto de alta calidad garantizada. Ideal para uso profesional o doméstico. Envíos seguros a todo el país."}
               </p>
             </div>
+
+            {/* SECCIÓN DE VARIANTES (Movida aquí para mejor UX) */}
+            {hasVariants && (
+              <div className="mb-8 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 animate-in fade-in zoom-in duration-500">
+                <p className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <CheckCircle size={16} className="text-blue-600" />
+                  Selecciona una opción obligatoria:
+                  {selectedVariant && (
+                    <span className="ml-1 text-blue-600 bg-white px-2 py-0.5 rounded-lg border border-blue-200">{selectedVariant}</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {product.items.filter(i => i && i.trim() !== "").map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setSelectedVariant(item === selectedVariant ? null : item)}
+                      className={`px-5 py-2.5 rounded-xl border-2 font-bold text-sm transition-all duration-300 ${selectedVariant === item
+                          ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-500/40 scale-105"
+                          : "border-white bg-white text-slate-700 hover:border-blue-400 hover:text-blue-600 shadow-sm"
+                        }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+                {!selectedVariant && (
+                  <div className="mt-4 flex items-center gap-2 text-[11px] text-amber-600 font-black uppercase tracking-wider animate-pulse">
+                    <span>⚠️ Selecciona para habilitar el carrito</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-4 mb-8">
               <span className="font-bold text-slate-800">Cantidad:</span>

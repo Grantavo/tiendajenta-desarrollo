@@ -812,7 +812,9 @@ export default function Orders() {
                   <span className="bg-slate-100 text-slate-700 font-black px-3 py-1 rounded-lg text-sm">
                     #{order.id}
                   </span>
-                  <h3 className="font-bold text-slate-800">{order.client}</h3>
+                  <h3 className="font-bold text-slate-800">
+                    {order.client || order.clientName || order.customerName || "Sin nombre"}
+                  </h3>
                   {order.status === "Anulado" && (
                     <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">
                       ANULADO
@@ -824,6 +826,26 @@ export default function Orders() {
                     </span>
                   )}
                 </div>
+
+                {/* DATOS DEL CLIENTE */}
+                <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
+                  {(order.phone) && (
+                    <a href={`tel:${order.phone}`} className="flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium hover:bg-green-100">
+                      📞 {order.phone}
+                    </a>
+                  )}
+                  {(order.clientEmail || order.customerEmail) && (
+                    <span className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
+                      ✉️ {order.clientEmail || order.customerEmail}
+                    </span>
+                  )}
+                  {(order.address || order.city) && (
+                    <span className="flex items-center gap-1 bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full font-medium">
+                      📍 {[order.address, order.city].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                </div>
+
                 <div className="mt-3 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100/50">
                   {order.items && Array.isArray(order.items) ? (
                     order.items.map((item, idx) => (

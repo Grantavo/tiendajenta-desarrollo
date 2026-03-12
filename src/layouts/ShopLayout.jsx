@@ -381,10 +381,13 @@ export default function ShopLayout() {
           const orderRef = doc(db, "orders", newOrderId);
           transaction.set(orderRef, {
             id: newOrderId,
+            client: user.name || "Cliente",
             customerEmail: user.email,
             customerName: user.name || "Cliente",
             clientId: user.id,
             phone: user.phone || "",
+            address: user.address || "",
+            city: user.city || "",
             items: validatedItems.map(({ ref, ...rest }) => rest),
             subtotal: serverSubtotal,
             discount: serverDiscount,
@@ -459,9 +462,13 @@ export default function ShopLayout() {
           const orderData = {
             orderId: generatedId,
             boldOrderId: boldId,
+            client: session.name || session.email || "Cliente",
             clientId: session.id || auth.currentUser?.uid || "guest",
             clientName: session.name || session.email || "Cliente",
             clientEmail: session.email || "",
+            phone: session.phone || "",
+            address: session.address || "",
+            city: session.city || "",
             items: cart,
             subtotal,
             shipping,

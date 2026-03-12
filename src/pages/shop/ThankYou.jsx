@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle, ShoppingBag, Home, Loader2, XCircle } from "lucide-react";
 import { db } from "../../firebase/config";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc } from "firebase/firestore";
 
 export default function ThankYou() {
   const location = useLocation();
@@ -44,11 +44,19 @@ export default function ThankYou() {
             paidAt: new Date(),
           });
           // Limpiar carrito del localStorage y notificar al CartContext
-          localStorage.removeItem("cart");
           localStorage.removeItem("jenta_cart");
-          sessionStorage.removeItem("cart");
-          // Disparar evento para que CartContext vacíe el carrito en memoria
           window.dispatchEvent(new Event("cart-cleared"));
+          
+          // Limpiar carrito de Firestore para que no se restaure al recargar
+          try {
+            const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");
+            if (session.email) {
+              await setDoc(doc(db, "carts", session.email), { items: [] }, { merge: true });
+            }
+          } catch (e) {
+            console.error("Error limpiando carrito en Firestore:", e);
+          }
+          
           setBoldProcessing(false);
         } else {
           // Pago rechazado o cancelado

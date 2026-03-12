@@ -269,6 +269,7 @@ export function CartProvider({ children }) {
   const clearCart = useCallback(async () => {
     const email = user?.email;
     setCart([]);
+    localStorage.removeItem("jenta_cart");
     if (email)
       await setDoc(doc(db, "carts", email), { items: [] }, { merge: true });
   }, [user?.email]);

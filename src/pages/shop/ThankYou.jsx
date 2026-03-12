@@ -43,6 +43,12 @@ export default function ThankYou() {
             boldStatus: "approved",
             paidAt: new Date(),
           });
+          // Limpiar carrito del localStorage para que quede vacío
+          localStorage.removeItem("cart");
+          localStorage.removeItem("jenta_cart");
+          sessionStorage.removeItem("cart");
+          // Disparar evento para que CartContext actualice su estado en memoria
+          window.dispatchEvent(new Event("storage"));
           setBoldProcessing(false);
         } else {
           // Pago rechazado o cancelado

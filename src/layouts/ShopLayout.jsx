@@ -515,6 +515,9 @@ export default function ShopLayout() {
         toast.info("Selecciona Pagar con Bold para completar el pago.", {
           description: "Se abrirá la pasarela de pago de Bold.",
         });
+
+        // Cerrar el panel del carrito para que Bold pueda renderirse correctamente
+        setIsCartOpen(false);
       } catch (error) {
         console.error("Error preparando pago Bold:", error);
         toast.error("Error al preparar el pago con Bold");

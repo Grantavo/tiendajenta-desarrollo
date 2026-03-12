@@ -441,39 +441,47 @@ export default function ShopLayout() {
           : 0;
         const totalAmount = Math.round(subtotal + shipping - discount);
 
-        // Crear orden en Firestore con estado pendiente
-        const { nextId } = await runTransaction(db, async (tx) => {
+        // Crear orden y actualizar contador en UNA SOLA transacción atómica
+        const { newOrderId, boldOrderId } = await runTransaction(db, async (tx) => {
           const counterRef = doc(db, "counters", "orders");
           const counterSnap = await tx.get(counterRef);
-          const currentCount = counterSnap.exists() ? counterSnap.data().count : 0;
-          const nextId = currentCount + 1;
-          tx.set(counterRef, { count: nextId });
-          return { nextId };
+          
+          let nextId = 1001;
+          if (counterSnap.exists()) {
+            // Usar 'seq' para ser consistente con el flujo de WhatsApp
+            nextId = (counterSnap.data().seq || 1000) + 1;
+          }
+          
+          const generatedId = `P${nextId}`; // Formato consistente P1001
+          const boldId = `JENTA-${generatedId}-${Date.now()}`;
+          const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");
+
+          const orderData = {
+            orderId: generatedId,
+            boldOrderId: boldId,
+            clientId: session.id || auth.currentUser?.uid || "guest",
+            clientName: session.name || session.email || "Cliente",
+            clientEmail: session.email || "",
+            items: cart,
+            subtotal,
+            shipping,
+            discount,
+            total: totalAmount,
+            status: "Pendiente Bold",
+            paymentMethod: "Bold",
+            createdAt: serverTimestamp(),
+          };
+
+          // Actualizar contador
+          tx.set(counterRef, { seq: nextId }, { merge: true });
+          
+          // Crear la orden
+          tx.set(doc(db, "orders", generatedId), orderData);
+
+          return { newOrderId: generatedId, boldOrderId: boldId };
         });
 
-        const newOrderId = String(nextId).padStart(4, "0");
-        const boldOrderId = `JENTA-${newOrderId}-${Date.now()}`;
         const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");
-
-        const orderData = {
-          orderId: newOrderId,
-          boldOrderId,
-          clientId: session.id || "guest",
-          clientName: session.name || session.email || "Cliente",
-          clientEmail: session.email || "",
-          items: cart,
-          subtotal,
-          shipping,
-          discount,
-          total: totalAmount,
-          status: "Pendiente Bold",
-          paymentMethod: "Bold",
-          createdAt: serverTimestamp(),
-        };
-
-        await runTransaction(db, async (tx) => {
-          tx.set(doc(db, "orders", newOrderId), orderData);
-        });
 
         // Datos del cliente para precargar en Bold
         const customerData = {

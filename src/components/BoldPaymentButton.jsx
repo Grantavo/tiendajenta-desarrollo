@@ -105,7 +105,24 @@ export default function BoldPaymentButton({
         </p>
       )}
       {/* El script de Bold renderiza el botón aquí */}
-      <div ref={containerRef} className={loading ? "hidden" : "flex justify-center"} />
+      <div 
+        ref={(el) => {
+          containerRef.current = el;
+          if (el) {
+            // Observador para detectar cuándo el SDK de Bold inyecta el botón real
+            const observer = new MutationObserver((mutations) => {
+              const boldBtn = el.querySelector('button, .bold-checkout-button');
+              if (boldBtn) {
+                console.log("Bold button detected, triggering auto-click...");
+                boldBtn.click();
+                observer.disconnect(); // Dejar de observar una vez hecho el clic
+              }
+            });
+            observer.observe(el, { childList: true, subtree: true });
+          }
+        }} 
+        className={loading ? "hidden" : "flex justify-center opacity-0 h-0 overflow-hidden"} 
+      />
     </div>
   );
 }

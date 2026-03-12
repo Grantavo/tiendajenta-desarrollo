@@ -77,9 +77,15 @@ export default function Orders() {
         const ordersSnap = await getDocs(collection(db, "orders"));
         const ordersData = ordersSnap.docs.map((d) => ({
           ...d.data(),
-          id: parseInt(d.id) || d.id,
+          id: d.id, // Mantener como string para evitar NaN
         }));
-        ordersData.sort((a, b) => b.id - a.id);
+        
+        // Sorting inteligente para IDs tipo P1001, 1001 y 0NaN
+        ordersData.sort((a, b) => {
+          const numA = parseInt(String(a.id).replace(/\D/g, "")) || 0;
+          const numB = parseInt(String(b.id).replace(/\D/g, "")) || 0;
+          return numB - numA;
+        });
         setOrders(ordersData);
 
         // B. Cargar Productos
@@ -293,9 +299,10 @@ export default function Orders() {
         let clientIdForRefund = order.clientId || null;
 
         // Si no hay clientId, intentamos buscarlo por email antes de la transacción
-        if (!clientIdForRefund && order.paymentMethod === "Billetera" && order.customerEmail) {
+        if (!clientIdForRefund && (order.paymentMethod === "Billetera" || order.paymentMethod === "Bold") && (order.customerEmail || order.clientEmail)) {
+          const emailToSearch = order.customerEmail || order.clientEmail;
           const clientsRef = collection(db, "clients");
-          const q = query(clientsRef, where("email", "==", order.customerEmail));
+          const q = query(clientsRef, where("email", "==", emailToSearch));
           const qSnap = await getDocs(q);
           if (!qSnap.empty) {
             clientIdForRefund = qSnap.docs[0].id;

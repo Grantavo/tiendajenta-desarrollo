@@ -882,20 +882,7 @@ export default function ShopLayout() {
                     </p>
                   </div>
 
-                  {/* BOTÓN BOLD: aparece cuando ya se creó la orden pendiente */}
-                  {boldPendingOrder && selectedPayment?.id === "bold" && (
-                    <div className="mt-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                      <p className="text-xs text-indigo-700 font-bold mb-1">✅ Pedido creado. Ahora completa el pago:</p>
-                      <BoldPaymentButton
-                        orderId={boldPendingOrder.orderId}
-                        amount={boldPendingOrder.amount}
-                        apiKey={boldPendingOrder.apiKey}
-                        secretKey={boldPendingOrder.secretKey}
-                        redirectUrl={boldPendingOrder.redirectUrl}
-                        customerData={boldPendingOrder.customerData}
-                      />
-                    </div>
-                  )}
+
                 </div>
               </div>
             </div>
@@ -957,30 +944,48 @@ export default function ShopLayout() {
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                if (!user) {
-                  toast.info("Debes iniciar sesión para completar tu pedido");
-                  setIsAuthOpen(true);
-                  return;
+            {/* Botón de acción principal */}
+            {boldPendingOrder && selectedPayment?.id === "bold" ? (
+              /* Cuando ya existe la orden, mostrar directamente el botón de Bold */
+              <div className="w-full">
+                <p className="text-xs text-center text-indigo-600 font-bold mb-2">
+                  ✅ Pedido listo — dale clic al botón de pago para continuar:
+                </p>
+                <BoldPaymentButton
+                  orderId={boldPendingOrder.orderId}
+                  amount={boldPendingOrder.amount}
+                  apiKey={boldPendingOrder.apiKey}
+                  secretKey={boldPendingOrder.secretKey}
+                  redirectUrl={boldPendingOrder.redirectUrl}
+                  customerData={boldPendingOrder.customerData}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (!user) {
+                    toast.info("Debes iniciar sesión para completar tu pedido");
+                    setIsAuthOpen(true);
+                    return;
+                  }
+                  handleCheckout();
+                }}
+                disabled={
+                  selectedPayment?.type === "Billetera" &&
+                  Number(user?.balance || 0) < total
                 }
-                handleCheckout();
-              }}
-              disabled={
-                selectedPayment?.type === "Billetera" &&
-                Number(user?.balance || 0) < total
-              }
-              className={`w-full text-white py-4 rounded-xl font-bold text-lg transition flex items-center justify-center gap-2 disabled:opacity-50 ${selectedPayment?.id === "bold" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-green-600 hover:bg-green-700"}`}
-            >
-              {user ? (
-                <>
-                  {selectedPayment?.id === "bold" ? "Preparar Pago con Bold" : "Completar Pedido"}{" "}
-                  <ArrowRight size={20} />
-                </>
-              ) : (
-                <>Iniciar Sesión para Comprar <User size={20} /></>
-              )}
-            </button>
+                className={`w-full text-white py-4 rounded-xl font-bold text-lg transition flex items-center justify-center gap-2 disabled:opacity-50 ${selectedPayment?.id === "bold" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-green-600 hover:bg-green-700"}`}
+              >
+                {user ? (
+                  <>
+                    {selectedPayment?.id === "bold" ? "Preparar Pago con Bold" : "Completar Pedido"}{" "}
+                    <ArrowRight size={20} />
+                  </>
+                ) : (
+                  <>Iniciar Sesión para Comprar <User size={20} /></>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>

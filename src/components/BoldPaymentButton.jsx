@@ -106,10 +106,8 @@ export default function BoldPaymentButton({
           ⚠️ No se pudo conectar con Bold. Recarga la página.
         </p>
       )}
-      {/* Contenedor donde Bold inyecta su botón.
-          Está en el DOM para que el SDK funcione, pero invisible para el cliente.
-          El auto-clic abre el modal de pago automáticamente. */}
-      <div ref={containerRef} style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, overflow: "hidden" }} />
+      {/* Contenedor donde Bold inyecta su botón — visible y centrado */}
+      <div ref={containerRef} className="flex justify-center mt-2" />
     </div>
   );
 }

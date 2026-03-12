@@ -855,27 +855,28 @@ export default function Orders() {
                   <MessageCircle size={18} />
                 </button>
 
+                {/* Botón Anular (solo para pedidos activos no eliminados) */}
+                {(order.status === "Pendiente" || order.status === "Pendiente Bold") && (
+                  <button
+                    onClick={() => cancelOrder(order.id)}
+                    className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg"
+                    title="Anular pedido"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+
+                {/* Botón Eliminar (disponible para Pendiente, Pendiente Bold, Anulado y Entregado) */}
                 {(order.status === "Anulado" ||
                   order.status === "Entregado" ||
-                  order.status === "Pendiente") && (
+                  order.status === "Pendiente" ||
+                  order.status === "Pendiente Bold") && (
                   <button
-                    onClick={() =>
-                      order.status === "Pendiente"
-                        ? cancelOrder(order.id)
-                        : deleteOrder(order.id)
-                    }
+                    onClick={() => deleteOrder(order.id)}
                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                    title={
-                      order.status === "Pendiente"
-                        ? "Anular"
-                        : "Eliminar con Nota"
-                    }
+                    title="Eliminar con nota"
                   >
-                    {order.status === "Pendiente" ? (
-                      <X size={18} />
-                    ) : (
-                      <Trash2 size={18} />
-                    )}
+                    <Trash2 size={18} />
                   </button>
                 )}
               </div>

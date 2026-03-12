@@ -35,16 +35,19 @@ export default function ThankYou() {
       try {
         const orderRef = doc(db, "orders", realOrderId);
         if (boldStatus === "approved") {
+          // Pago aprobado: mover a "Pendiente" para que aparezca en el panel del admin
           await updateDoc(orderRef, {
-            status: "Procesando",
+            status: "Pendiente",
+            isPaid: true,
             boldTxId: boldTxId || "",
             boldStatus: "approved",
             paidAt: new Date(),
           });
           setBoldProcessing(false);
         } else {
+          // Pago rechazado o cancelado
           await updateDoc(orderRef, {
-            status: "Cancelado",
+            status: "Anulado",
             boldStatus: boldStatus,
           });
           setBoldError(true);

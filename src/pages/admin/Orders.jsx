@@ -636,7 +636,10 @@ export default function Orders() {
   const filteredOrders =
     activeTab === "Todos"
       ? orders
-      : orders.filter((o) => o.status === activeTab);
+      : activeTab === "Pendiente"
+        // Incluir "Pendiente Bold" también en la pestaña Pendiente
+        ? orders.filter((o) => o.status === "Pendiente" || o.status === "Pendiente Bold")
+        : orders.filter((o) => o.status === activeTab);
 
   if (loading)
     return (
@@ -690,9 +693,11 @@ export default function Orders() {
               }`}
             >
               {
-                orders.filter((o) =>
-                  tab === "Todos" ? true : o.status === tab
-                ).length
+                tab === "Todos"
+                  ? orders.length
+                  : tab === "Pendiente"
+                    ? orders.filter((o) => o.status === "Pendiente" || o.status === "Pendiente Bold").length
+                    : orders.filter((o) => o.status === tab).length
               }
             </span>
           </button>

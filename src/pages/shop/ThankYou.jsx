@@ -22,6 +22,28 @@ export default function ThankYou() {
   const [boldProcessing, setBoldProcessing] = useState(!!boldStatus);
   const [boldError, setBoldError] = useState(false);
 
+  // LIMPIAR CARRITO AL LLEGAR A THANK YOU (aplica para TODOS los métodos de pago)
+  useEffect(() => {
+    // 1. Limpiar localStorage
+    localStorage.removeItem("jenta_cart");
+    
+    // 2. Limpiar estado en memoria del CartContext
+    window.dispatchEvent(new Event("cart-cleared"));
+    
+    // 3. Limpiar carrito en Firestore para que no se restaure desde la nube
+    const clearFirestoreCart = async () => {
+      try {
+        const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");
+        if (session.email) {
+          await setDoc(doc(db, "carts", session.email), { items: [] }, { merge: true });
+        }
+      } catch (e) {
+        console.error("Error limpiando carrito Firestore:", e);
+      }
+    };
+    clearFirestoreCart();
+  }, []); // Solo al montar
+
   // Manejar resultado del pago Bold
   useEffect(() => {
     if (!boldStatus || !boldOrderId) return;
@@ -43,20 +65,6 @@ export default function ThankYou() {
             boldStatus: "approved",
             paidAt: new Date(),
           });
-          // Limpiar carrito del localStorage y notificar al CartContext
-          localStorage.removeItem("jenta_cart");
-          window.dispatchEvent(new Event("cart-cleared"));
-          
-          // Limpiar carrito de Firestore para que no se restaure al recargar
-          try {
-            const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");
-            if (session.email) {
-              await setDoc(doc(db, "carts", session.email), { items: [] }, { merge: true });
-            }
-          } catch (e) {
-            console.error("Error limpiando carrito en Firestore:", e);
-          }
-          
           setBoldProcessing(false);
         } else {
           // Pago rechazado o cancelado

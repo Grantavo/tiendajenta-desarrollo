@@ -3,13 +3,8 @@ import { sha256 } from "../utils/crypto";
 
 /**
  * BoldPaymentButton
- * Carga el SDK de Bold e inyecta el botón de pago en el DOM.
- *
- * @param {string} orderId   - ID único del pedido (ej: "JENTA-1740001234")
- * @param {number} amount    - Monto en pesos COP (ej: 50000)
- * @param {string} apiKey    - API Key pública de Bold
- * @param {string} secretKey - Secret Key privada de Bold (para firma)
- * @param {string} redirectUrl - URL a la que Bold redirige tras el pago
+ * Carga el SDK de Bold e inyecta el botón de pago.
+ * Dispara el clic automáticamente para que la pasarela se abra sin que el cliente lo haga.
  */
 export default function BoldPaymentButton({
   orderId,
@@ -20,37 +15,32 @@ export default function BoldPaymentButton({
   customerData,
 }) {
   const containerRef = useRef(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading | ready | error
 
   useEffect(() => {
     if (!orderId || !amount || !apiKey || !secretKey) {
-      setError("Faltan datos para iniciar el pago con Bold.");
-      setLoading(false);
+      setStatus("error");
       return;
     }
 
     let isMounted = true;
+    let observer = null;
 
     const injectBoldScript = async () => {
       try {
-        // Firma de integridad: SHA-256({ID}{Monto}{Divisa}{LlaveSecreta})
-        // Según documentación oficial: Identificador + Monto + Divisa + LlaveSecreta
         const rawString = `${orderId}${amount}COP${secretKey}`;
         const signature = await sha256(rawString);
 
         if (!isMounted || !containerRef.current) return;
 
-        // Limpiar cualquier script previo
+        // Limpiar script previo
         const old = document.getElementById("bold-payment-script");
         if (old) old.remove();
 
-        // Crear el script de Bold con todos los atributos requeridos
         const script = document.createElement("script");
         script.id = "bold-payment-script";
-        script.src =
-          "https://checkout.bold.co/library/boldPaymentButton.js";
-        script.setAttribute("data-bold-button", "dark-L"); // Estilo Bold institucional, tamaño Grande
+        script.src = "https://checkout.bold.co/library/boldPaymentButton.js";
+        script.setAttribute("data-bold-button", "dark-L");
         script.setAttribute("data-order-id", orderId);
         script.setAttribute("data-currency", "COP");
         script.setAttribute("data-amount", String(amount));
@@ -62,23 +52,34 @@ export default function BoldPaymentButton({
           script.setAttribute("data-customer-data", customerData);
         }
 
+        // Cuando el script cargue, observar para clickear el botón automáticamente
         script.onload = () => {
-          if (isMounted) setLoading(false);
-        };
-        script.onerror = () => {
-          if (isMounted) {
-            setError("No se pudo conectar con Bold. Verifica tu conexión.");
-            setLoading(false);
-          }
+          if (!isMounted) return;
+          setStatus("ready");
+
+          // Esperar a que Bold inyecte el botón en el DOM y disparar el clic
+          let attempts = 0;
+          const tryClick = setInterval(() => {
+            attempts++;
+            const boldEl = containerRef.current?.querySelector("button, [class*='bold'], [id*='bold']");
+            if (boldEl) {
+              console.log("[Bold] Botón detectado, abriendo pasarela automáticamente...");
+              boldEl.click();
+              clearInterval(tryClick);
+            }
+            if (attempts > 30) clearInterval(tryClick); // Dejar de intentar después de 3 seg
+          }, 100);
         };
 
+        script.onerror = () => {
+          if (isMounted) setStatus("error");
+        };
+
+        // El contenedor DEBE estar en el DOM y visible para que Bold renderice
         containerRef.current.appendChild(script);
       } catch (err) {
-        console.error("Error preparando pago Bold:", err);
-        if (isMounted) {
-          setError("Error preparando el pago. Intenta de nuevo.");
-          setLoading(false);
-        }
+        console.error("Error Bold:", err);
+        if (isMounted) setStatus("error");
       }
     };
 
@@ -86,43 +87,29 @@ export default function BoldPaymentButton({
 
     return () => {
       isMounted = false;
+      if (observer) observer.disconnect();
       const old = document.getElementById("bold-payment-script");
       if (old) old.remove();
     };
   }, [orderId, amount, apiKey, secretKey, redirectUrl]);
 
   return (
-    <div className="mt-4">
-      {loading && !error && (
-        <div className="flex items-center justify-center gap-3 py-4 text-slate-500 text-sm">
-          <div className="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
-          Conectando con Bold...
+    <div>
+      {status === "loading" && (
+        <div className="flex items-center justify-center gap-3 py-3 text-slate-500 text-sm">
+          <div className="w-4 h-4 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
+          Abriendo pasarela de pago...
         </div>
       )}
-      {error && (
+      {status === "error" && (
         <p className="text-sm text-red-500 text-center py-3 bg-red-50 rounded-xl">
-          ⚠️ {error}
+          ⚠️ No se pudo conectar con Bold. Recarga la página.
         </p>
       )}
-      {/* El script de Bold renderiza el botón aquí */}
-      <div 
-        ref={(el) => {
-          containerRef.current = el;
-          if (el) {
-            // Observador para detectar cuándo el SDK de Bold inyecta el botón real
-            const observer = new MutationObserver((mutations) => {
-              const boldBtn = el.querySelector('button, .bold-checkout-button');
-              if (boldBtn) {
-                console.log("Bold button detected, triggering auto-click...");
-                boldBtn.click();
-                observer.disconnect(); // Dejar de observar una vez hecho el clic
-              }
-            });
-            observer.observe(el, { childList: true, subtree: true });
-          }
-        }} 
-        className={loading ? "hidden" : "flex justify-center opacity-0 h-0 overflow-hidden"} 
-      />
+      {/* Contenedor donde Bold inyecta su botón.
+          Está en el DOM para que el SDK funcione, pero invisible para el cliente.
+          El auto-clic abre el modal de pago automáticamente. */}
+      <div ref={containerRef} style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, overflow: "hidden" }} />
     </div>
   );
 }

@@ -44,20 +44,25 @@ export function CartProvider({ children }) {
     }
   });
 
-  // --- NUEVO: ESCUCHADOR DE EVENTOS DE LOGIN/LOGOUT ---
+  // --- ESCUCHADOR DE EVENTOS DE LOGIN/LOGOUT ---
   useEffect(() => {
-    // Función que recarga el usuario
     const handleAuthChange = () => setUser(getUserFromStorage());
-
-    // Escuchamos el evento personalizado 'auth-change' (Mismo Tab)
     window.addEventListener("auth-change", handleAuthChange);
-    // Escuchamos el evento 'storage' (Entre Tabs/Ventanas)
     window.addEventListener("storage", handleAuthChange);
-
     return () => {
       window.removeEventListener("auth-change", handleAuthChange);
       window.removeEventListener("storage", handleAuthChange);
     };
+  }, []);
+
+  // --- ESCUCHADOR PARA VACIAR EL CARRITO TRAS EL PAGO ---
+  useEffect(() => {
+    const handleCartCleared = () => {
+      setCart([]);
+      localStorage.removeItem("jenta_cart");
+    };
+    window.addEventListener("cart-cleared", handleCartCleared);
+    return () => window.removeEventListener("cart-cleared", handleCartCleared);
   }, []);
 
   // --- FIREBASE AUTH LISTENER: Detecta login con Google (redirect o popup) ---

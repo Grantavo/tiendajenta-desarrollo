@@ -40,7 +40,9 @@ export default function MyOrdersModal({ isOpen, onClose, user }) {
             queries.push(getDocs(query(ordersRef, where("phone", "==", user.phone))));
           }
           if (user.email) {
+            // clientEmail = pedidos Bold / customerEmail = pedidos Billetera
             queries.push(getDocs(query(ordersRef, where("clientEmail", "==", user.email))));
+            queries.push(getDocs(query(ordersRef, where("customerEmail", "==", user.email))));
           }
           if (user.id) {
             queries.push(getDocs(query(ordersRef, where("clientId", "==", user.id))));

@@ -43,12 +43,12 @@ export default function ThankYou() {
             boldStatus: "approved",
             paidAt: new Date(),
           });
-          // Limpiar carrito del localStorage para que quede vacío
+          // Limpiar carrito del localStorage y notificar al CartContext
           localStorage.removeItem("cart");
           localStorage.removeItem("jenta_cart");
           sessionStorage.removeItem("cart");
-          // Disparar evento para que CartContext actualice su estado en memoria
-          window.dispatchEvent(new Event("storage"));
+          // Disparar evento para que CartContext vacíe el carrito en memoria
+          window.dispatchEvent(new Event("cart-cleared"));
           setBoldProcessing(false);
         } else {
           // Pago rechazado o cancelado

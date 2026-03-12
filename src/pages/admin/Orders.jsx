@@ -68,6 +68,59 @@ export default function Orders() {
   // Estado para Edición
   const [editingId, setEditingId] = useState(null);
 
+  // --- SELECCIÓN MÚLTIPLE ---
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(String(id))
+        ? prev.filter((s) => s !== String(id))
+        : [...prev, String(id)]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredOrders?.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredOrders?.map((o) => String(o.id)) || []);
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const reason = window.prompt(
+      `¿Eliminar ${selectedIds.length} pedido(s) seleccionados?\nEscribe el motivo (quedará en historial):`
+    );
+    if (reason === null) return;
+    const finalReason = reason.trim() || "Eliminación masiva";
+
+    try {
+      const batch = writeBatch(db);
+      for (const id of selectedIds) {
+        batch.update(doc(db, "orders", id), {
+          status: "Eliminado",
+          deletionReason: finalReason,
+          deletedAt: new Date(),
+        });
+      }
+      await batch.commit();
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          selectedIds.includes(String(o.id))
+            ? { ...o, status: "Eliminado", deletionReason: finalReason }
+            : o
+        )
+      );
+      setSelectedIds([]);
+      toast.success(`${selectedIds.length} pedido(s) eliminados`);
+    } catch (err) {
+      console.error("Error en borrado masivo:", err);
+      toast.error("Error al eliminar los pedidos");
+    }
+  };
+
   // --- 2. CARGAR DATOS ---
   useEffect(() => {
     const fetchAllData = async () => {
@@ -677,7 +730,7 @@ export default function Orders() {
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); setSelectedIds([]); }}
             className={`w-full md:w-auto px-4 py-3 md:py-2 rounded-xl md:rounded-full text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === tab
                 ? "bg-slate-800 text-white shadow-md"
@@ -704,6 +757,29 @@ export default function Orders() {
         ))}
       </div>
 
+      {/* BARRA DE SELECCIÓN MÚLTIPLE */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 mb-4 animate-in slide-in-from-top-2">
+          <span className="text-sm font-bold text-indigo-700">
+            {selectedIds.length} pedido(s) seleccionado(s)
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 border border-slate-200 rounded-lg bg-white"
+            >
+              Deseleccionar todo
+            </button>
+            <button
+              onClick={bulkDelete}
+              className="text-xs text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5"
+            >
+              <Trash2 size={14} /> Eliminar seleccionados
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* LISTA DE PEDIDOS */}
       <div className="space-y-3">
         {filteredOrders.length === 0 ? (
@@ -717,8 +793,19 @@ export default function Orders() {
           filteredOrders.map((order) => (
             <div
               key={order.id}
-              className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4 items-center animate-in slide-in-from-bottom-2"
+              className={`bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4 items-center animate-in slide-in-from-bottom-2 ${
+                selectedIds.includes(String(order.id))
+                  ? "border-indigo-400 ring-2 ring-indigo-200"
+                  : "border-slate-200"
+              }`}
             >
+              {/* CHECKBOX DE SELECCIÓN */}
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(String(order.id))}
+                onChange={() => toggleSelect(order.id)}
+                className="w-4 h-4 rounded accent-indigo-600 shrink-0 cursor-pointer"
+              />
               {/* 1. INFO PRINCIPAL */}
               <div className="flex-1 w-full md:w-auto">
                 <div className="flex items-center gap-3 mb-1">

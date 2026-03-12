@@ -69,7 +69,7 @@ export default function AdminLayout() {
   }, []);
 
   useIdleTimer({
-    timeout: 1000 * 60 * 15, // 15 minutos
+    timeout: 1000 * 60 * 60, // 60 minutos (1 hora)
     onIdle: handleIdle,
   });
 

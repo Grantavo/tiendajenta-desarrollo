@@ -512,11 +512,7 @@ export default function ShopLayout() {
           customerData: JSON.stringify(customerData),
         });
 
-        // Vaciar carrito inmediatamente para que el cliente pueda hacer otro pedido
-        clearCart();
-        window.dispatchEvent(new Event("cart-cleared"));
-
-        toast.info("¡Pedido creado! Ahora presiona Pagar con Bold para completar.", {
+        toast.info("¡Pedido creado! Presiona Pagar con Bold para completar.", {
           description: "La pasarela de pago se abrirá a continuación.",
         });
       } catch (error) {

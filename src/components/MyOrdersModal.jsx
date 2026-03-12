@@ -24,33 +24,51 @@ export default function MyOrdersModal({ isOpen, onClose, user }) {
 
   // Cargar Pedidos al abrir el modal
   useEffect(() => {
-    if (isOpen && user?.phone) {
+    if (isOpen && (user?.id || user?.email || user?.phone)) {
       const fetchOrders = async () => {
         setLoading(true);
         try {
-          // Buscamos pedidos asociados al teléfono del usuario
-          // IMPORTANTE: Usamos el teléfono como identificador único
-          const q = query(
-            collection(db, "orders"),
-            where("phone", "==", user.phone),
-          );
+          const ordersRef = collection(db, "orders");
+          
+          // Ejecutar múltiples queries en paralelo para cubrir todos los métodos de pago:
+          // - WhatsApp usa "phone"
+          // - Billetera usa "clientId" (id del doc de clients)
+          // - Bold usa "clientId" y "clientEmail"
+          const queries = [];
+          
+          if (user.phone) {
+            queries.push(getDocs(query(ordersRef, where("phone", "==", user.phone))));
+          }
+          if (user.email) {
+            queries.push(getDocs(query(ordersRef, where("clientEmail", "==", user.email))));
+          }
+          if (user.id) {
+            queries.push(getDocs(query(ordersRef, where("clientId", "==", user.id))));
+          }
 
-          const querySnapshot = await getDocs(q);
-          const ordersData = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
+          const snapshots = await Promise.all(queries);
+          
+          // Combinar todos los resultados sin duplicados (usando el ID del doc como clave)
+          const seen = new Set();
+          const allOrders = [];
+          for (const snap of snapshots) {
+            for (const doc of snap.docs) {
+              if (!seen.has(doc.id)) {
+                seen.add(doc.id);
+                allOrders.push({ id: doc.id, ...doc.data() });
+              }
+            }
+          }
 
-          // Ordenamos por fecha (del más reciente al más antiguo) en JavaScript
-          // para evitar errores de índices complejos en Firebase por ahora.
-          ordersData.sort((a, b) => {
-            // Si tienes timestamp de firebase:
-            if (a.createdAt && b.createdAt) return b.createdAt - a.createdAt;
-            // Si solo tienes string de fecha, intentamos por ID (que suele ser incremental o timestamp)
+          // Ordenar del más reciente al más antiguo
+          allOrders.sort((a, b) => {
+            if (a.createdAt?.seconds && b.createdAt?.seconds) {
+              return b.createdAt.seconds - a.createdAt.seconds;
+            }
             return String(b.id).localeCompare(String(a.id));
           });
 
-          setOrders(ordersData);
+          setOrders(allOrders);
         } catch (error) {
           console.error("Error cargando mis pedidos:", error);
         } finally {

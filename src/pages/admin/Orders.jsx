@@ -330,14 +330,21 @@ export default function Orders() {
             });
           }
 
-          // 2. Devolver stock de productos (solo si fue descontado)
-          if (orderData.stockDeducted !== false) { // Por defecto asumimos true para pedidos nuevos
+          // 2. Devolver stock de productos (solo si fue descontado y el producto existe)
+          if (orderData.stockDeducted !== false) {
             const orderItems = orderData.items || [];
             for (const item of orderItems) {
+              // Validar que el item tenga un ID válido
+              if (!item.id || item.id === "undefined") continue;
+              
               const productRef = doc(db, "products", String(item.id));
-              transaction.update(productRef, {
-                stock: increment(Number(item.qty || item.quantity) || 1)
-              });
+              // Verificar existencia antes de actualizar (evita error de transacción)
+              const productSnap = await transaction.get(productRef);
+              if (productSnap.exists()) {
+                transaction.update(productRef, {
+                  stock: increment(Number(item.qty || item.quantity) || 1)
+                });
+              }
             }
           }
 

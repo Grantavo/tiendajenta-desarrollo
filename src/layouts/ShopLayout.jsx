@@ -469,6 +469,7 @@ export default function ShopLayout() {
             total: totalAmount,
             status: "Pendiente Bold",
             paymentMethod: "Bold",
+            stockDeducted: false, // Bold no descuenta stock en el checkout
             createdAt: serverTimestamp(),
           };
 

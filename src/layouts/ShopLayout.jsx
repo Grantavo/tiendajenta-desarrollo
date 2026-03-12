@@ -512,12 +512,13 @@ export default function ShopLayout() {
           customerData: JSON.stringify(customerData),
         });
 
-        toast.info("Selecciona Pagar con Bold para completar el pago.", {
-          description: "Se abrirá la pasarela de pago de Bold.",
-        });
+        // Vaciar carrito inmediatamente para que el cliente pueda hacer otro pedido
+        clearCart();
+        window.dispatchEvent(new Event("cart-cleared"));
 
-        // Cerrar el panel del carrito para que Bold pueda renderirse correctamente
-        setIsCartOpen(false);
+        toast.info("¡Pedido creado! Ahora presiona Pagar con Bold para completar.", {
+          description: "La pasarela de pago se abrirá a continuación.",
+        });
       } catch (error) {
         console.error("Error preparando pago Bold:", error);
         toast.error("Error al preparar el pago con Bold");
@@ -650,6 +651,7 @@ export default function ShopLayout() {
 
       toast.success("Procesando pedido... Validando pago");
       clearCart();
+      window.dispatchEvent(new Event("cart-cleared"));
       setIsCartOpen(false);
       // PASAR ESTADO A THANK-YOU PARA EVITAR REDIRECCIÓN
       navigate("/thank-you", { state: { orderId: newOrderId, total, items: cart, paymentMethod: selectedPayment.type } });

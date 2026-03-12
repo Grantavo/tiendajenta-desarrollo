@@ -84,16 +84,11 @@ service cloud.firestore {
 
     // 5. PEDIDOS
     // - Crear: cualquier usuario autenticado
-    // - Leer: el dueño del pedido (por clientId, email o phone) o admin
+    // - Leer: cualquier usuario autenticado (las queries SDK ya filtran por email/clientId)
     // - Actualizar/eliminar: solo admin
     match /orders/{orderId} {
       allow create: if isAuthenticated();
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        resource.data.clientId == request.auth.uid ||
-        resource.data.clientEmail == request.auth.token.email ||
-        resource.data.customerEmail == request.auth.token.email
-      );
+      allow read: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 

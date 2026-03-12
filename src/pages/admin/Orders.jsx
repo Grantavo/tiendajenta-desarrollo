@@ -718,15 +718,44 @@ export default function Orders() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-400 flex gap-2">
-                  <span>{order.date}</span>
-                  <span>•</span>
-                  <span className="text-slate-500 font-medium truncate max-w-[200px]">
-                    {order.items
-                      ? order.items.map((i) => `${i.qty} ${i.title}`).join(", ")
-                      : "Sin items"}
-                  </span>
-                </p>
+                <div className="mt-3 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100/50">
+                  {order.items && Array.isArray(order.items) ? (
+                    order.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-white border border-slate-200 text-slate-700 font-black px-1.5 py-0.5 rounded min-w-[24px] text-center">
+                            {item.qty || item.quantity || 1}
+                          </span>
+                          <span className="text-slate-700 font-medium">{item.title}</span>
+                          {item.variant && (
+                            <span className="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold text-[10px] border border-indigo-100 uppercase">
+                              {item.variant}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-slate-400 tabular-nums">
+                          ${(Number(item.price) || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Sin productos</span>
+                  )}
+                </div>
+
+                <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-400 font-medium">
+                  <span className="bg-slate-200 px-2 py-0.5 rounded text-slate-600">{order.date}</span>
+                  {order.paymentMethod && (
+                    <span className="border border-slate-200 px-2 py-0.5 rounded text-slate-500 uppercase">
+                      💳 {order.paymentMethod}
+                    </span>
+                  )}
+                  {order.boldOrderId && (
+                    <span className="text-indigo-500 font-bold truncate max-w-[150px]" title={order.boldOrderId}>
+                      ID Bold: {order.boldOrderId}
+                    </span>
+                  )}
+                </div>
 
                 {order.status === "Eliminado" && order.deletionReason && (
                   <div className="mt-2 text-xs bg-red-50 text-red-600 p-2 rounded flex items-center gap-2 border border-red-100">

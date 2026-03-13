@@ -61,6 +61,8 @@ export default function CategoryPage() {
         name: sub.name || sub.nombre || "Sin nombre",
       })) || [];
 
+  const activeSubcatName = normalizedSubcategories.find(s => s.id === activeSubcatId)?.name;
+
   if (id === "undefined") {
     return (
       <div className="py-20 text-center">
@@ -108,7 +110,7 @@ export default function CategoryPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-black text-center mb-8 uppercase">
-        {category.name || category.nombre}
+        {activeSubcatName || category.name || category.nombre}
       </h1>
 
       {/* SUBCATEGORÍAS */}
@@ -128,14 +130,22 @@ export default function CategoryPage() {
       )}
 
       {/* VOLVER */}
-      {activeSubcatId && (
-        <button
-          onClick={() => setActiveSubcatId(null)}
-          className="mb-6 text-sm font-bold text-blue-600"
+      <div className="flex flex-wrap gap-4 mb-6">
+        {activeSubcatId && (
+          <button
+            onClick={() => setActiveSubcatId(null)}
+            className="text-sm font-bold text-blue-600 hover:underline"
+          >
+            ← Ver todas las subcategorías
+          </button>
+        )}
+        <Link
+          to="/"
+          className="text-sm font-bold text-slate-500 hover:text-slate-800 hover:underline"
         >
-          ← Ver todas las subcategorías
-        </button>
-      )}
+          Ir a todas las categorías
+        </Link>
+      </div>
 
       {/* PRODUCTOS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

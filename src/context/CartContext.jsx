@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { db, auth } from "../firebase/config";
 import { doc, onSnapshot, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, signOut, getRedirectResult } from "firebase/auth";
+import useIdleTimer from "../hooks/useIdleTimer";
 
 const CartContext = createContext();
 
@@ -64,6 +65,26 @@ export function CartProvider({ children }) {
     window.addEventListener("cart-cleared", handleCartCleared);
     return () => window.removeEventListener("cart-cleared", handleCartCleared);
   }, []);
+
+  // --- TIMEOUT DE INACTIVIDAD DEL CLIENTE (12 HORAS) ---
+  const CLIENT_IDLE_TIMEOUT = 1000 * 60 * 60 * 12; // 12 horas
+  useIdleTimer({
+    timeout: CLIENT_IDLE_TIMEOUT,
+    onIdle: () => {
+      if (user) {
+        toast.info("Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.", { duration: 6000 });
+        // Limpiar sesión
+        sessionStorage.removeItem("shopUser");
+        localStorage.removeItem("shopUser");
+        setCart([]);
+        localStorage.removeItem("jenta_cart");
+        setUser(null);
+        signOut(auth).catch(() => {});
+        window.dispatchEvent(new Event("auth-change"));
+        window.location.href = "/";
+      }
+    },
+  });
 
   // --- FIREBASE AUTH LISTENER: Detecta login con Google (redirect o popup) ---
   useEffect(() => {

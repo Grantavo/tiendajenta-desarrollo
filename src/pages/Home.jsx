@@ -157,7 +157,7 @@ export default function Home() {
               alt="Banner"
               fetchpriority="high"
               decoding="async"
-              className="w-full h-full object-cover opacity-60"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black"></div>
@@ -179,12 +179,14 @@ export default function Home() {
             >
               {activeBanner.title}
             </h1>
-            <p
-              className="text-xl md:text-2xl mb-8 drop-shadow-md font-medium"
-              style={{ color: activeBanner.textColor || "#e2e8f0" }}
-            >
-              {activeBanner.subtitle}
-            </p>
+            {activeBanner.subtitle && activeBanner.subtitle !== "Descripción..." && (
+              <p
+                className="text-xl md:text-2xl mb-8 drop-shadow-md font-medium"
+                style={{ color: activeBanner.textColor || "#e2e8f0" }}
+              >
+                {activeBanner.subtitle}
+              </p>
+            )}
             <Link to={activeBanner.link || "/productos"}>
               <button
                 className="px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"

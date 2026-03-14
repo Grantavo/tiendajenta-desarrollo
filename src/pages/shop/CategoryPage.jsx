@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Folder, PackageOpen, AlertCircle } from "lucide-react";
 import { db } from "../../firebase/config";
 import {
@@ -109,6 +110,13 @@ export default function CategoryPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Helmet>
+        <title>{`${activeSubcatName || category.name || category.nombre} | Tienda Jenta`}</title>
+        <meta
+          name="description"
+          content={`Explora lo mejor en ${activeSubcatName || category.name} en Tienda Jenta. Tecnología, ferretería y más con envío a toda Colombia.`}
+        />
+      </Helmet>
       <h1 className="text-3xl font-black text-center mb-8 uppercase">
         {activeSubcatName || category.name || category.nombre}
       </h1>

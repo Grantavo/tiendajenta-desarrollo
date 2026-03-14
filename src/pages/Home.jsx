@@ -148,91 +148,79 @@ export default function Home() {
     <div className="bg-slate-50 min-h-screen pb-20 font-sans">
 
 
-      {/* HERO (CLEAN INTEGRATION REDESIGN) */}
-      <div className="relative overflow-hidden h-[420px] md:h-[550px] bg-white border-b border-slate-100 group">
-        
-        {/* Gradiante de profundidad sutil detrás de todo */}
-        <div className="absolute inset-0 z-0 opacity-40">
-           <div className={`absolute top-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] rounded-full blur-[80px] md:blur-[150px] transition-all duration-1000 ${
-             activeBanner.textOverlay === "right" ? "left-[-5%]" : "right-[-5%]"
-           }`} style={{ backgroundColor: activeBanner.btnColor || "#dc2626", opacity: 0.1 }}></div>
+      {/* HERO (RESTAURACIÓN DE ALTO IMPACTO) */}
+      <div className="bg-slate-900 text-white relative overflow-hidden h-[400px] md:h-[500px] group">
+        <div className="absolute inset-0">
+          {activeBanner.image ? (
+            <img
+              src={activeBanner.image}
+              alt="Banner"
+              fetchpriority="high"
+              decoding="async"
+              className="w-full h-full object-cover opacity-80"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black"></div>
+          )}
+          {/* Overlay gradiente para legibilidad premium */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
         </div>
 
-        <div className="container mx-auto h-full px-4 md:px-12 relative z-10">
-          <div className={`flex flex-col md:flex-row items-center justify-center md:justify-between h-full gap-4 md:gap-0 ${
-            activeBanner.textOverlay === "right" ? "md:flex-row-reverse" : ""
-          }`}>
-            
-            {/* TEXTO - Adaptable a móvil */}
-            <div className={`w-full md:w-1/2 flex flex-col transition-all duration-700 ${
-              activeBanner.textOverlay === "right" 
-                ? "items-center md:items-end text-center md:text-right" 
-                : "items-center md:items-start text-center md:text-left"
-            }`}>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-sm mb-4 animate-in fade-in slide-in-from-top-2">
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}></span>
-                <span className="text-[10px] md:text-xs font-bold text-slate-500 tracking-wider uppercase">Oferta Exclusiva</span>
-              </div>
-              
-              <h1 className="text-3xl md:text-6xl font-black mb-3 md:mb-6 leading-tight tracking-tight text-slate-900 drop-shadow-sm">
-                {activeBanner.title}
-              </h1>
-              
-              {activeBanner.subtitle && activeBanner.subtitle !== "Descripción..." && (
-                <p className="text-sm md:text-xl text-slate-500 mb-6 md:mb-10 max-w-md leading-relaxed">
-                  {activeBanner.subtitle}
-                </p>
-              )}
-              
-              <Link to={activeBanner.link || "/productos"}>
-                <button
-                  className="px-8 md:px-10 py-3 md:py-4 rounded-xl font-black text-sm md:text-base shadow-xl hover:shadow-2xl transition-all text-white active:scale-95"
-                  style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}
-                >
-                  {activeBanner.btnText || "Ver Productos"}
-                </button>
-              </Link>
-            </div>
-
-            {/* PRODUCTO - Centrado y con escala correcta */}
-            <div className="w-full md:w-1/2 h-[180px] md:h-full flex items-center justify-center relative mt-4 md:mt-0">
-               {/* Podium/Sombra para quitar el efecto 'volando' */}
-               <div className="absolute bottom-[10%] md:bottom-[20%] w-[60%] h-4 md:h-8 bg-slate-900/5 blur-xl rounded-[100%]"></div>
-               
-               {activeBanner.image ? (
-                 <img
-                   src={activeBanner.image}
-                   alt={activeBanner.title}
-                   className="max-w-[90%] md:max-w-full max-h-full object-contain relative z-10 transition-transform duration-500 hover:scale-105 drop-shadow-xl"
-                 />
-               ) : (
-                 <div className="w-32 md:w-64 h-32 md:h-64 bg-white/50 rounded-full border border-slate-200 flex items-center justify-center">
-                    <ShoppingBag size={32} className="text-slate-300" />
-                 </div>
-               )}
-            </div>
-
+        <div
+          className={`relative z-10 h-full flex flex-col justify-center px-6 md:px-12 transition-all duration-300 ${activeBanner.textOverlay === "left"
+            ? "items-start text-left pl-10 md:pl-20"
+            : activeBanner.textOverlay === "right"
+              ? "items-end text-right pr-10 md:pr-20"
+              : "items-center text-center"
+            }`}
+        >
+          <div className="max-w-2xl">
+            <h1
+              className="text-4xl md:text-6xl font-black mb-4 drop-shadow-2xl"
+              style={{ color: activeBanner.textColor || "#ffffff" }}
+            >
+              {activeBanner.title}
+            </h1>
+            {activeBanner.subtitle && activeBanner.subtitle !== "Descripción..." && (
+              <p
+                className="text-xl md:text-2xl mb-8 drop-shadow-lg font-medium opacity-90"
+                style={{ color: activeBanner.textColor || "#e2e8f0" }}
+              >
+                {activeBanner.subtitle}
+              </p>
+            )}
+            <Link to={activeBanner.link || "/productos"}>
+              <button
+                className="px-8 py-4 rounded-full font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                style={{
+                  backgroundColor: activeBanner.btnColor || "#dc2626",
+                  color: activeBanner.btnTextColor || "#ffffff",
+                }}
+              >
+                {activeBanner.btnText || "Ver Productos"}
+              </button>
+            </Link>
           </div>
         </div>
 
-        {/* Navegación Refinada */}
+        {/* Botones de navegación (Estilo minimalista sobre fondo oscuro) */}
         {activeBannersList.length > 1 && (
-          <div className="absolute bottom-4 md:bottom-10 right-4 md:right-12 z-20 flex gap-2 md:gap-4">
+          <>
             <button
               onClick={prevSlide}
-              className="p-2 md:p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-slate-900 transition-all shadow-sm"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all z-20 hidden md:block"
               aria-label="Anterior"
             >
-              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+              <ChevronLeft className="w-6 h-6" />
             </button>
             <button
               onClick={nextSlide}
-              className="p-2 md:p-3 rounded-xl bg-slate-900 text-white shadow-lg hover:scale-105 transition-all"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all z-20 hidden md:block"
               aria-label="Siguiente"
             >
-              <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+              <ChevronRight className="w-6 h-6" />
             </button>
-          </div>
+          </>
         )}
       </div>
 

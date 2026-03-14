@@ -6,6 +6,7 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ShopLayout from "./layouts/ShopLayout";
 import ProtectedRoute from "./pages/auth/ProtectedRoute";
+import AutoLogout from "./components/AutoLogout";
 import { CartProvider } from "./context/CartContext";
 
 // --- LAZY CON RETRY ---
@@ -80,6 +81,7 @@ export default function App() {
     <CartProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <AutoLogout />
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner fullScreen />}>
             <Routes>

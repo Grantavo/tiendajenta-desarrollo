@@ -313,7 +313,7 @@ export default function ProductDetail() {
               <h3 className="font-bold text-slate-800 mb-2 text-sm uppercase">
                 Sobre este producto:
               </h3>
-              <p className="text-slate-600 leading-relaxed text-sm">
+              <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-wrap">
                 {product.description ||
                   "Producto de alta calidad garantizada. Ideal para uso profesional o doméstico. Envíos seguros a todo el país."}
               </p>

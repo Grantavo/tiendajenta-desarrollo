@@ -148,7 +148,7 @@ export default function Banners() {
       {
         id: Date.now(),
         title: "NUEVA OFERTA",
-        subtitle: "Descripción...",
+        subtitle: "",
         btnText: "Ver más",
         link: "",
         linkType: "product",
@@ -398,9 +398,11 @@ function BannerCard({ banner, index, total, onUpdate, onImage, onDelete, onMove,
                    />
                    {/* TEXT OVERLAY PREVIEW */}
                    <div className="absolute inset-0 flex flex-col justify-center items-start p-6 text-white pointer-events-none">
-                      <span className="font-bold text-xl md:text-2xl leading-tight drop-shadow-md mb-1">{banner.title}</span>
-                      <span className="text-xs md:text-sm drop-shadow-md opacity-90 mb-3">{banner.subtitle}</span>
-                      <span className="bg-white text-slate-900 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">
+                       <span className="font-bold text-xl md:text-2xl leading-tight drop-shadow-md mb-1">{banner.title}</span>
+                       {banner.subtitle && banner.subtitle !== "Descripción..." && (
+                         <span className="text-xs md:text-sm drop-shadow-md opacity-90 mb-3">{banner.subtitle}</span>
+                       )}
+                       <span className="bg-white text-slate-900 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">
                          {banner.btnText}
                       </span>
                    </div>

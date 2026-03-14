@@ -150,14 +150,28 @@ export default function Home() {
 
       {/* HERO */}
       <div className="bg-slate-900 text-white relative overflow-hidden h-[400px] md:h-[500px] group">
-        <div className="absolute inset-0">
+        {/* Capa de Fondo Desenfocada (RELLENA LOS ESPACIOS) */}
+        {activeBanner.image && (
+          <div className="absolute inset-0 overflow-hidden">
+            <img
+              src={activeBanner.image}
+              alt=""
+              className="w-full h-full object-cover blur-3xl opacity-50 scale-110"
+            />
+            {/* Overlay sutil para legibilidad del texto */}
+            <div className="absolute inset-0 bg-black/30"></div>
+          </div>
+        )}
+
+        {/* Imagen Principal (CENTREADA Y COMPLETA) */}
+        <div className="absolute inset-0 flex items-center justify-center p-4">
           {activeBanner.image ? (
             <img
               src={activeBanner.image}
               alt="Banner"
               fetchpriority="high"
               decoding="async"
-              className="w-full h-full object-contain"
+              className="max-w-full max-h-full object-contain relative z-10 drop-shadow-2xl"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black"></div>
@@ -165,7 +179,7 @@ export default function Home() {
         </div>
 
         <div
-          className={`relative z-10 h-full flex flex-col justify-center px-12 transition-all duration-300 ${activeBanner.textOverlay === "left"
+          className={`relative z-20 h-full flex flex-col justify-center px-12 transition-all duration-300 ${activeBanner.textOverlay === "left"
             ? "items-start text-left pl-20"
             : activeBanner.textOverlay === "right"
               ? "items-end text-right pr-20"

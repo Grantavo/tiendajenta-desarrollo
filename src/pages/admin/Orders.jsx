@@ -381,19 +381,17 @@ export default function Orders() {
           }
 
           const productsToUpdate = [];
-          if (orderData.stockDeducted !== false) {
-            const orderItems = orderData.items || [];
-            for (const item of orderItems) {
-              if (!item.id || item.id === "undefined") continue;
-              
-              const productRef = doc(db, "products", String(item.id));
-              const productSnap = await transaction.get(productRef);
-              if (productSnap.exists()) {
-                productsToUpdate.push({
-                  ref: productRef,
-                  qtyToReturn: Number(item.qty || item.quantity) || 1
-                });
-              }
+          const orderItems = orderData.items || [];
+          for (const item of orderItems) {
+            if (!item.id || item.id === "undefined") continue;
+            
+            const productRef = doc(db, "products", String(item.id));
+            const productSnap = await transaction.get(productRef);
+            if (productSnap.exists()) {
+              productsToUpdate.push({
+                ref: productRef,
+                qtyToReturn: Number(item.qty || item.quantity) || 1
+              });
             }
           }
 
@@ -428,20 +426,18 @@ export default function Orders() {
         );
 
         // --- CORRECCIÓN: ACTUALIZAR STOCK EN UI LOCAL TAMBIÉN ---
-        if (order.stockDeducted !== false) {
-           const orderItems = order.items || [];
-           setProducts(prevProducts => {
-              const newProducts = prevProducts.map(p => {
-                 const itemInOrder = orderItems.find(i => String(i.id) === String(p.id));
-                 if (itemInOrder) {
-                    const qtyToReturn = Number(itemInOrder.qty || itemInOrder.quantity) || 1;
-                    return { ...p, stock: Number(p.stock) + qtyToReturn };
-                 }
-                 return p;
-              });
-              return newProducts;
+        const orderItems = order.items || [];
+        setProducts(prevProducts => {
+           const newProducts = prevProducts.map(p => {
+              const itemInOrder = orderItems.find(i => String(i.id) === String(p.id));
+              if (itemInOrder) {
+                 const qtyToReturn = Number(itemInOrder.qty || itemInOrder.quantity) || 1;
+                 return { ...p, stock: Number(p.stock) + qtyToReturn };
+              }
+              return p;
            });
-        }
+           return newProducts;
+        });
         // -------------------------------------------------------
 
         toast.success("Pedido Anulado con éxito. Saldo y stock devueltos.");

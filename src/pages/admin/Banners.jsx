@@ -449,7 +449,7 @@ function BannerCard({ banner, index, total, onUpdate, onImage, onDelete, onMove,
               />
               <input
                 type="text"
-                placeholder="Subtítulo"
+                placeholder="Subtítulo (opcional)"
                 className="w-full p-2 border-b text-slate-600 outline-none focus:border-blue-500"
                 value={banner.subtitle}
                 onChange={(e) =>

@@ -148,91 +148,95 @@ export default function Home() {
     <div className="bg-slate-50 min-h-screen pb-20 font-sans">
 
 
-      {/* HERO */}
-      <div className="bg-slate-900 text-white relative overflow-hidden h-[400px] md:h-[500px] group">
-        {/* Capa de Fondo Desenfocada (RELLENA LOS ESPACIOS) */}
-        {activeBanner.image && (
-          <div className="absolute inset-0 overflow-hidden">
-            <img
-              src={activeBanner.image}
-              alt=""
-              className="w-full h-full object-cover blur-3xl opacity-50 scale-110"
-            />
-            {/* Overlay sutil para legibilidad del texto */}
-            <div className="absolute inset-0 bg-black/30"></div>
-          </div>
-        )}
-
-        {/* Imagen Principal (CENTREADA Y COMPLETA) */}
-        <div className="absolute inset-0 flex items-center justify-center p-4">
-          {activeBanner.image ? (
-            <img
-              src={activeBanner.image}
-              alt="Banner"
-              fetchpriority="high"
-              decoding="async"
-              className="max-w-full max-h-full object-contain relative z-10 drop-shadow-2xl"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-black"></div>
-          )}
+      {/* HERO (SPLIT LAYOUT REDESIGN) */}
+      <div className="relative overflow-hidden h-[500px] md:h-[600px] bg-white border-b border-slate-100 group">
+        
+        {/* FONDO DINÁMICO (Glow Effect) */}
+        <div className="absolute inset-0 z-0">
+           <div className={`absolute top-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-[120px] transition-all duration-1000 ${
+             activeBanner.textOverlay === "right" ? "left-[-100px]" : "right-[-100px]"
+           }`} style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}></div>
         </div>
 
-        <div
-          className={`relative z-20 h-full flex flex-col justify-center px-12 transition-all duration-300 ${activeBanner.textOverlay === "left"
-            ? "items-start text-left pl-20"
-            : activeBanner.textOverlay === "right"
-              ? "items-end text-right pr-20"
-              : "items-center text-center"
-            }`}
-        >
-          <div className="max-w-2xl">
-            <h1
-              className="text-4xl md:text-6xl font-black mb-4 drop-shadow-lg"
-              style={{ color: activeBanner.textColor || "#ffffff" }}
-            >
-              {activeBanner.title}
-            </h1>
-            {activeBanner.subtitle && activeBanner.subtitle !== "Descripción..." && (
-              <p
-                className="text-xl md:text-2xl mb-8 drop-shadow-md font-medium"
-                style={{ color: activeBanner.textColor || "#e2e8f0" }}
+        <div className="container mx-auto h-full px-6 md:px-12 relative z-10">
+          <div className={`flex flex-col md:flex-row items-center justify-between h-full gap-8 md:gap-0 ${
+            activeBanner.textOverlay === "right" ? "md:flex-row-reverse" : ""
+          }`}>
+            
+            {/* TEXTO (COLUMNA 1) */}
+            <div className={`w-full md:w-1/2 flex flex-col justify-center transition-all duration-700 delay-100 ${
+              activeBanner.textOverlay === "right" ? "items-end text-right" : "items-start text-left"
+            }`}>
+              <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 text-slate-500 text-xs font-bold tracking-widest uppercase mb-6 animate-in fade-in slide-in-from-bottom-2">
+                Oferta Especial
+              </span>
+              <h1
+                className="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight text-slate-900"
               >
-                {activeBanner.subtitle}
-              </p>
-            )}
-            <Link to={activeBanner.link || "/productos"}>
-              <button
-                className="px-8 py-4 rounded-full font-bold shadow-xl hover:scale-105 transition-transform"
-                style={{
-                  backgroundColor: activeBanner.btnColor || "#dc2626",
-                  color: activeBanner.btnTextColor || "#ffffff",
-                }}
-              >
-                {activeBanner.btnText || "Ver Productos"}
-              </button>
-            </Link>
+                {activeBanner.title}
+              </h1>
+              {activeBanner.subtitle && activeBanner.subtitle !== "Descripción..." && (
+                <p
+                  className="text-xl text-slate-500 mb-10 max-w-lg leading-relaxed font-medium"
+                >
+                  {activeBanner.subtitle}
+                </p>
+              )}
+              <Link to={activeBanner.link || "/productos"}>
+                <button
+                  className="group relative px-10 py-4 rounded-2xl font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all text-white overflow-hidden"
+                  style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                  <span className="relative z-10 flex items-center gap-2">
+                    {activeBanner.btnText || "Ver Productos"}
+                    <ChevronRight size={18} />
+                  </span>
+                </button>
+              </Link>
+            </div>
+
+            {/* PRODUCTO (COLUMNA 2) */}
+            <div className="w-full md:w-1/2 h-[250px] md:h-full flex items-center justify-center relative">
+               {/* Sombra proyectada suave debajo del producto */}
+               <div className="absolute bottom-[20%] w-1/2 h-8 bg-black/10 blur-2xl rounded-[100%] scale-x-150"></div>
+               
+               {activeBanner.image ? (
+                 <img
+                   src={activeBanner.image}
+                   alt={activeBanner.title}
+                   fetchpriority="high"
+                   decoding="async"
+                   className="max-w-full max-h-[85%] object-contain relative z-10 transition-transform duration-700 hover:scale-110 drop-shadow-[0_25px_25px_rgba(0,0,0,0.1)]"
+                 />
+               ) : (
+                 <div className="w-64 h-64 bg-slate-50 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center">
+                    <ShoppingBag size={48} className="text-slate-200" />
+                 </div>
+               )}
+            </div>
+
           </div>
         </div>
 
-        {/* Botones de navegación del carrusel */}
+        {/* Botones de navegación (Estilo minimalista) */}
         {activeBannersList.length > 1 && (
-          <>
+          <div className="absolute bottom-10 right-12 z-30 flex gap-4">
             <button
               onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-all z-20"
-              aria-label="Banner anterior"
+              className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 hover:shadow-lg transition-all"
+              aria-label="Anterior"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-all z-20"
-              aria-label="Banner siguiente"
+              className="p-3 rounded-2xl bg-slate-900 text-white shadow-xl hover:bg-slate-800 hover:scale-105 transition-all"
+              aria-label="Siguiente"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-5 h-5" />
             </button>
-          </>
+          </div>
         )}
       </div>
 

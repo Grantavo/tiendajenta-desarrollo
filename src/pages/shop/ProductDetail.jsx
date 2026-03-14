@@ -96,6 +96,8 @@ export default function ProductDetail() {
     return () => clearInterval(interval);
   }, [product]);
 
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
+
   if (loading) {
     return <LoadingSpinner fullScreen />;
   }
@@ -115,6 +117,25 @@ export default function ProductDetail() {
       </div>
     );
   }
+
+  // --- PROCESAMIENTO DE DESCRIPCIÓN (Viñetas y Leer Más) ---
+  const rawDescription = product.description || "Producto de alta calidad garantizada. Ideal para uso profesional o doméstico. Envíos seguros a todo el país.";
+  
+  // 1. Transformar asteriscos al inicio de línea en puntos (•)
+  const processedDescription = rawDescription
+    .split("\n")
+    .map(line => {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("*")) {
+        return line.replace("*", "•");
+      }
+      return line;
+    })
+    .join("\n");
+
+  // 2. Determinar si es "Larga" (más de 7 líneas o muchos caracteres)
+  const linesCount = processedDescription.split("\n").length;
+  const isLongDescription = linesCount > 7 || processedDescription.length > 400;
 
   const validImages = product.images ? product.images.filter((img) => img) : [];
   const price = Number(product.price) || 0;
@@ -313,10 +334,24 @@ export default function ProductDetail() {
               <h3 className="font-bold text-slate-800 mb-2 text-sm uppercase">
                 Sobre este producto:
               </h3>
-              <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-wrap">
-                {product.description ||
-                  "Producto de alta calidad garantizada. Ideal para uso profesional o doméstico. Envíos seguros a todo el país."}
-              </p>
+              <div className="relative">
+                <p 
+                  className={`text-slate-600 leading-relaxed text-sm whitespace-pre-wrap transition-all duration-300 ${
+                    !isDescExpanded && isLongDescription ? "line-clamp-[7]" : ""
+                  }`}
+                >
+                  {processedDescription}
+                </p>
+                
+                {isLongDescription && (
+                  <button
+                    onClick={() => setIsDescExpanded(!isDescExpanded)}
+                    className="text-blue-600 text-xs font-bold mt-2 hover:underline flex items-center gap-1"
+                  >
+                    {isDescExpanded ? "Ver menos" : "Leer más..."}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* SECCIÓN DE VARIANTES (Movida aquí para mejor UX) */}

@@ -15,6 +15,7 @@ import {
 import ExcelJS from "exceljs";
 
 import { toast } from "sonner";
+import { compressImage } from "../../utils/image";
 
 import { db, storage } from "../../firebase/config";
 import {
@@ -171,21 +172,18 @@ export default function AdminProducts() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Aunque ahora usamos Storage, mantenemos un límite razonable para no saturar el ancho de banda
-    if (file.size > 2 * 1024 * 1024) {
-      return toast.warning("Imagen muy pesada", {
-        description: "Máximo 2MB permitido para optimizar la carga.",
-      });
-    }
-
     try {
       const newUploadStates = [...uploadingImages];
       newUploadStates[index] = true;
       setUploadingImages(newUploadStates);
 
-      const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      // --- OPTIMIZACIÓN DE IMAGEN ---
+      // Comprimimos, redimensionamos (max 1200px) y convertimos a WebP
+      const optimizedBlob = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+      
+      const fileName = `${Date.now()}_${file.name.replace(/\.[^/.]+$/, "").replace(/\s+/g, '_')}.webp`;
       const storageRef = ref(storage, `products/${fileName}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
 
       uploadTask.on(
         "state_changed",

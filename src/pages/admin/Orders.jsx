@@ -370,38 +370,53 @@ export default function Orders() {
 
           if (orderData.status === "Anulado") throw "El pedido ya está anulado";
 
-          // 1. Devolver saldo si fue Billetera
-          if (orderData.paymentMethod === "Billetera" && clientIdForRefund) {
-            const clientRef = doc(db, "clients", clientIdForRefund);
-            
-            // CLEAN TOTAL: Asegurar que el total del pedido sea un número puro antes de sumar
-            const rawTotal = String(orderData.total || "0");
-            const cleanTotalAmount = Number(rawTotal.replace(/[.,]/g, "")) || 0;
+          // --- 1. FASE DE LECTURA (READS) ---
+          // Firebase exige que TODOS los gets se hagan antes de los updates
 
-            transaction.update(clientRef, {
-              balance: increment(cleanTotalAmount)
-            });
+          let clientRef = null;
+          let clientSnap = null;
+          if (orderData.paymentMethod === "Billetera" && clientIdForRefund) {
+            clientRef = doc(db, "clients", clientIdForRefund);
+            clientSnap = await transaction.get(clientRef);
           }
 
-          // 2. Devolver stock de productos (solo si fue descontado y el producto existe)
+          const productsToUpdate = [];
           if (orderData.stockDeducted !== false) {
             const orderItems = orderData.items || [];
             for (const item of orderItems) {
-              // Validar que el item tenga un ID válido
               if (!item.id || item.id === "undefined") continue;
               
               const productRef = doc(db, "products", String(item.id));
-              // Verificar existencia antes de actualizar (evita error de transacción)
               const productSnap = await transaction.get(productRef);
               if (productSnap.exists()) {
-                transaction.update(productRef, {
-                  stock: increment(Number(item.qty || item.quantity) || 1)
+                productsToUpdate.push({
+                  ref: productRef,
+                  qtyToReturn: Number(item.qty || item.quantity) || 1
                 });
               }
             }
           }
 
-          // 3. Cambiar estado a Anulado
+          // --- 2. FASE DE ESCRITURA (WRITES) ---
+          // Ahora aplicamos todas las modificaciones a la BD
+
+          // 2.1. Devolver saldo si fue Billetera
+          if (clientRef && clientSnap && clientSnap.exists()) {
+            const rawTotal = String(orderData.total || "0");
+            const cleanTotalAmount = Number(rawTotal.replace(/[.,]/g, "")) || 0;
+            transaction.update(clientRef, {
+              balance: increment(cleanTotalAmount)
+            });
+          }
+
+          // 2.2. Devolver stock de productos acumulados
+          for (const prod of productsToUpdate) {
+            transaction.update(prod.ref, {
+              stock: increment(prod.qtyToReturn)
+            });
+          }
+
+          // 2.3. Cambiar estado del pedido a Anulado
           transaction.update(orderRef, { status: "Anulado" });
         });
 

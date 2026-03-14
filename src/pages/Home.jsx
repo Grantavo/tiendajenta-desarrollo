@@ -148,70 +148,66 @@ export default function Home() {
     <div className="bg-slate-50 min-h-screen pb-20 font-sans">
 
 
-      {/* HERO (SPLIT LAYOUT REDESIGN) */}
-      <div className="relative overflow-hidden h-[500px] md:h-[600px] bg-white border-b border-slate-100 group">
+      {/* HERO (CLEAN INTEGRATION REDESIGN) */}
+      <div className="relative overflow-hidden h-[420px] md:h-[550px] bg-white border-b border-slate-100 group">
         
-        {/* FONDO DINÁMICO (Glow Effect) */}
-        <div className="absolute inset-0 z-0">
-           <div className={`absolute top-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-[120px] transition-all duration-1000 ${
-             activeBanner.textOverlay === "right" ? "left-[-100px]" : "right-[-100px]"
-           }`} style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}></div>
+        {/* Gradiante de profundidad sutil detrás de todo */}
+        <div className="absolute inset-0 z-0 opacity-40">
+           <div className={`absolute top-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] rounded-full blur-[80px] md:blur-[150px] transition-all duration-1000 ${
+             activeBanner.textOverlay === "right" ? "left-[-5%]" : "right-[-5%]"
+           }`} style={{ backgroundColor: activeBanner.btnColor || "#dc2626", opacity: 0.1 }}></div>
         </div>
 
-        <div className="container mx-auto h-full px-6 md:px-12 relative z-10">
-          <div className={`flex flex-col md:flex-row items-center justify-between h-full gap-8 md:gap-0 ${
+        <div className="container mx-auto h-full px-4 md:px-12 relative z-10">
+          <div className={`flex flex-col md:flex-row items-center justify-center md:justify-between h-full gap-4 md:gap-0 ${
             activeBanner.textOverlay === "right" ? "md:flex-row-reverse" : ""
           }`}>
             
-            {/* TEXTO (COLUMNA 1) */}
-            <div className={`w-full md:w-1/2 flex flex-col justify-center transition-all duration-700 delay-100 ${
-              activeBanner.textOverlay === "right" ? "items-end text-right" : "items-start text-left"
+            {/* TEXTO - Adaptable a móvil */}
+            <div className={`w-full md:w-1/2 flex flex-col transition-all duration-700 ${
+              activeBanner.textOverlay === "right" 
+                ? "items-center md:items-end text-center md:text-right" 
+                : "items-center md:items-start text-center md:text-left"
             }`}>
-              <span className="inline-block px-4 py-1.5 rounded-full bg-slate-100 text-slate-500 text-xs font-bold tracking-widest uppercase mb-6 animate-in fade-in slide-in-from-bottom-2">
-                Oferta Especial
-              </span>
-              <h1
-                className="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight text-slate-900"
-              >
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-sm mb-4 animate-in fade-in slide-in-from-top-2">
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}></span>
+                <span className="text-[10px] md:text-xs font-bold text-slate-500 tracking-wider uppercase">Oferta Exclusiva</span>
+              </div>
+              
+              <h1 className="text-3xl md:text-6xl font-black mb-3 md:mb-6 leading-tight tracking-tight text-slate-900 drop-shadow-sm">
                 {activeBanner.title}
               </h1>
+              
               {activeBanner.subtitle && activeBanner.subtitle !== "Descripción..." && (
-                <p
-                  className="text-xl text-slate-500 mb-10 max-w-lg leading-relaxed font-medium"
-                >
+                <p className="text-sm md:text-xl text-slate-500 mb-6 md:mb-10 max-w-md leading-relaxed">
                   {activeBanner.subtitle}
                 </p>
               )}
+              
               <Link to={activeBanner.link || "/productos"}>
                 <button
-                  className="group relative px-10 py-4 rounded-2xl font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all text-white overflow-hidden"
+                  className="px-8 md:px-10 py-3 md:py-4 rounded-xl font-black text-sm md:text-base shadow-xl hover:shadow-2xl transition-all text-white active:scale-95"
                   style={{ backgroundColor: activeBanner.btnColor || "#dc2626" }}
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                  <span className="relative z-10 flex items-center gap-2">
-                    {activeBanner.btnText || "Ver Productos"}
-                    <ChevronRight size={18} />
-                  </span>
+                  {activeBanner.btnText || "Ver Productos"}
                 </button>
               </Link>
             </div>
 
-            {/* PRODUCTO (COLUMNA 2) */}
-            <div className="w-full md:w-1/2 h-[250px] md:h-full flex items-center justify-center relative">
-               {/* Sombra proyectada suave debajo del producto */}
-               <div className="absolute bottom-[20%] w-1/2 h-8 bg-black/10 blur-2xl rounded-[100%] scale-x-150"></div>
+            {/* PRODUCTO - Centrado y con escala correcta */}
+            <div className="w-full md:w-1/2 h-[180px] md:h-full flex items-center justify-center relative mt-4 md:mt-0">
+               {/* Podium/Sombra para quitar el efecto 'volando' */}
+               <div className="absolute bottom-[10%] md:bottom-[20%] w-[60%] h-4 md:h-8 bg-slate-900/5 blur-xl rounded-[100%]"></div>
                
                {activeBanner.image ? (
                  <img
                    src={activeBanner.image}
                    alt={activeBanner.title}
-                   fetchpriority="high"
-                   decoding="async"
-                   className="max-w-full max-h-[85%] object-contain relative z-10 transition-transform duration-700 hover:scale-110 drop-shadow-[0_25px_25px_rgba(0,0,0,0.1)]"
+                   className="max-w-[90%] md:max-w-full max-h-full object-contain relative z-10 transition-transform duration-500 hover:scale-105 drop-shadow-xl"
                  />
                ) : (
-                 <div className="w-64 h-64 bg-slate-50 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center">
-                    <ShoppingBag size={48} className="text-slate-200" />
+                 <div className="w-32 md:w-64 h-32 md:h-64 bg-white/50 rounded-full border border-slate-200 flex items-center justify-center">
+                    <ShoppingBag size={32} className="text-slate-300" />
                  </div>
                )}
             </div>
@@ -219,22 +215,22 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Botones de navegación (Estilo minimalista) */}
+        {/* Navegación Refinada */}
         {activeBannersList.length > 1 && (
-          <div className="absolute bottom-10 right-12 z-30 flex gap-4">
+          <div className="absolute bottom-4 md:bottom-10 right-4 md:right-12 z-20 flex gap-2 md:gap-4">
             <button
               onClick={prevSlide}
-              className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 hover:shadow-lg transition-all"
+              className="p-2 md:p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-slate-900 transition-all shadow-sm"
               aria-label="Anterior"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
             </button>
             <button
               onClick={nextSlide}
-              className="p-3 rounded-2xl bg-slate-900 text-white shadow-xl hover:bg-slate-800 hover:scale-105 transition-all"
+              className="p-2 md:p-3 rounded-xl bg-slate-900 text-white shadow-lg hover:scale-105 transition-all"
               aria-label="Siguiente"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
         )}

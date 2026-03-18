@@ -19,7 +19,7 @@ import {
 // 1. IMPORTAR EL HOOK DE PERMISOS
 import { usePermissions } from "../../hooks/usePermissions";
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, isCollapsed = false }) {
   const location = useLocation();
   const { hasPermission } = usePermissions();
 
@@ -158,44 +158,59 @@ export default function Sidebar({ isOpen, onClose }) {
       />
 
       <aside
-        className={`fixed lg:relative z-50 w-72 h-[100dvh] flex flex-col transition-transform duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          }`}
+        className={`fixed lg:relative z-50 h-[100dvh] flex flex-col transition-[width,transform] duration-300 border-r border-slate-200 bg-slate-100/80 backdrop-blur-xl ${isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+          } ${isCollapsed ? "w-72 lg:w-20" : "w-72"}`}
       >
         {/* LOGO DINÁMICO */}
-        <div className="h-24 flex items-center justify-between px-8">
-          {shopSettings.logo ? (
-            <img
-              src={shopSettings.logo}
-              alt="Logo Tienda"
-              className="max-h-12 w-auto object-contain transition-all duration-300"
-            />
-          ) : (
-            <span className="text-2xl font-black tracking-tighter text-slate-800 uppercase truncate">
-              {shopSettings.nombre || "GENTA"}
-              <span className="text-red-600">.ADMIN</span>
-            </span>
-          )}
-          {/* CLOSE BUTTON MOBILE */}
-          <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-red-500">
-            <X size={24} />
-          </button>
+        <div className={`h-24 flex items-center justify-between ${isCollapsed ? 'px-8 lg:px-0 lg:justify-center' : 'px-8'}`}>
+          <div className={`flex items-center w-full ${isCollapsed ? 'justify-between lg:justify-center' : 'justify-between'}`}>
+            
+            {/* Logo Desktop Expandido o Mobile */}
+            <div className={`${isCollapsed ? 'block lg:hidden' : 'block'}`}>
+               {shopSettings.logo ? (
+                <img
+                  src={shopSettings.logo}
+                  alt="Logo Tienda"
+                  className="max-h-12 w-auto object-contain transition-all duration-300"
+                />
+              ) : (
+                <span className="text-2xl font-black tracking-tighter text-slate-800 uppercase truncate">
+                  {shopSettings.nombre || "GENTA"}
+                  <span className="text-red-600">.ADMIN</span>
+                </span>
+              )}
+            </div>
+
+            {/* Logo Desktop Colapsado */}
+            <div className={`hidden ${isCollapsed ? 'lg:block' : ''}`}>
+               <span className="text-2xl font-black tracking-tighter text-slate-800 uppercase truncate">
+                  {shopSettings.nombre?.charAt(0) || "G"}<span className="text-red-600">.</span>
+               </span>
+            </div>
+
+            {/* CLOSE BUTTON MOBILE */}
+            <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-red-500 ml-auto">
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* MENÚ FILTRADO */}
         <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-8 no-scrollbar">
           {allowedMenu.map((group, index) => (
             <div key={index}>
-              <h3 className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">
+              <h3 className={`px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 transition-all duration-200 ${isCollapsed ? "lg:opacity-0 lg:h-0 lg:m-0 lg:overflow-hidden whitespace-nowrap" : ""}`}>
                 {group.title}
               </h3>
-              <ul className="space-y-1">
+              <ul className={`space-y-1 ${isCollapsed ? 'lg:space-y-3' : ''}`}>
                 {group.items.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
                     <li key={item.path}>
                       <Link
                         to={item.path}
-                        className={`group flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                        title={isCollapsed ? item.label : undefined}
+                        className={`group flex items-center gap-3 ${isCollapsed ? 'px-4 lg:px-0 lg:justify-center' : 'px-4'} py-3.5 text-sm font-medium rounded-xl transition-all duration-200 relative ${isActive
                           ? "bg-white text-red-600 shadow-sm ring-1 ring-slate-200"
                           : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
                           }`}
@@ -208,9 +223,13 @@ export default function Sidebar({ isOpen, onClose }) {
                         >
                           {item.icon}
                         </span>
-                        {item.label}
+                        
+                        <span className={`transition-all duration-200 whitespace-nowrap ${isCollapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden' : ''}`}>
+                          {item.label}
+                        </span>
+
                         {isActive && (
-                          <div className="ml-auto w-2 h-2 rounded-full bg-red-600 shadow-sm animate-pulse"></div>
+                          <div className={`ml-auto w-2 h-2 rounded-full bg-red-600 shadow-sm animate-pulse ${isCollapsed ? 'lg:hidden' : ''}`}></div>
                         )}
                       </Link>
                     </li>
@@ -222,15 +241,16 @@ export default function Sidebar({ isOpen, onClose }) {
         </nav>
 
         {/* FOOTER USER */}
-        <div className="p-4 border-t border-slate-200/50 mt-auto bg-slate-100/95 backdrop-blur-xl">
+        <div className="p-4 border-t border-slate-200/50 mt-auto bg-slate-100/95 backdrop-blur-xl shrink-0">
           <a
             href="/?preview=admin"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-slate-900 hover:scale-[1.02] transition-all duration-300"
+            title={isCollapsed ? "Ver Tienda" : undefined}
+            className={`flex items-center justify-center gap-2 w-full py-3 ${isCollapsed ? 'px-4 lg:px-0' : 'px-4'} bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-slate-900 hover:scale-[1.02] transition-all duration-300`}
           >
             <LogOut size={18} />
-            <span>Ver Tienda</span>
+            <span className={`whitespace-nowrap ${isCollapsed ? 'block lg:hidden' : 'block'}`}>Ver Tienda</span>
           </a>
         </div>
       </aside>

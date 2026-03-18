@@ -39,6 +39,7 @@ export default function AdminLayout() {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
@@ -201,7 +202,11 @@ export default function AdminLayout() {
       className={`flex h-screen bg-slate-50 ${isDarkMode ? "dark bg-slate-900 text-white" : ""
         }`}
     >
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        isCollapsed={isDesktopSidebarCollapsed}
+      />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {isHeaderVisible && (
@@ -210,6 +215,14 @@ export default function AdminLayout() {
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="lg:hidden text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={24} />
+              </button>
+              
+              <button
+                onClick={() => setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
+                className="hidden lg:block text-slate-500 hover:text-slate-700"
+                title="Colapsar/Expandir menú"
               >
                 <Menu size={24} />
               </button>

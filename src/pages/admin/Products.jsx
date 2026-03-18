@@ -499,7 +499,7 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-6 py-3">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-bold ${product.stock > 0
+                        className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${product.stock > 0
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
                           }`}
@@ -590,7 +590,7 @@ export default function AdminProducts() {
                       <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                         {categories.find(c => c.id == product.categoryId)?.name || "Sin Cat."}
                       </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${product.stock > 0 ? "border-green-200 text-green-700 bg-green-50" : "border-red-200 text-red-700 bg-red-50"}`}>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${product.stock > 0 ? "border-green-200 text-green-700 bg-green-50" : "border-red-200 text-red-700 bg-red-50"}`}>
                         {product.stock} un.
                       </span>
                     </div>

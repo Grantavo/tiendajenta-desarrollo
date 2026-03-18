@@ -10,6 +10,8 @@ import {
   Sun,
   Camera,
   Menu,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 
 import { auth, db, storage } from "../firebase/config";
@@ -224,7 +226,7 @@ export default function AdminLayout() {
                 className="hidden lg:block text-slate-500 hover:text-slate-700"
                 title="Colapsar/Expandir menú"
               >
-                <Menu size={24} />
+                {isDesktopSidebarCollapsed ? <PanelLeft size={24} /> : <PanelLeftClose size={24} />}
               </button>
 
               <div className="relative w-80 hidden sm:block">

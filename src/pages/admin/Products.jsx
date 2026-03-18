@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Trophy,
   Smartphone,
+  Share2,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 
@@ -324,6 +325,12 @@ export default function AdminProducts() {
     }
   };
 
+  const handleShareProduct = (product) => {
+    const shareText = `        \u{1F525} *¡Mira este producto!* \u{1F525}\n\n            *${product.title}*\n                \u{1F911} ${formatPrice(product.price)}\n\n      \u{1F440} ¡Consíguelo ya en nuestra tienda!\n            👉 https://jenta.online`;
+    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+  };
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -530,14 +537,23 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-6 py-3 text-right space-x-2">
                       <button
+                        onClick={() => handleShareProduct(product)}
+                        className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-full transition"
+                        title="Compartir en WhatsApp"
+                      >
+                        <Share2 size={18} />
+                      </button>
+                      <button
                         onClick={() => openEdit(product)}
                         className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition"
+                        title="Editar"
                       >
                         <Edit2 size={18} />
                       </button>
                       <button
                         onClick={() => handleDelete(product.id)}
                         className="text-red-600 hover:bg-red-50 p-2 rounded-full transition"
+                        title="Eliminar"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -616,7 +632,13 @@ export default function AdminProducts() {
                     )}
                   </div>
 
-                  <div className="flex justify-end gap-3 mt-2">
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      onClick={() => handleShareProduct(product)}
+                      className="flex-1 bg-emerald-50 text-emerald-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"
+                    >
+                      <Share2 size={14} /> Compartir
+                    </button>
                     <button
                       onClick={() => openEdit(product)}
                       className="flex-1 bg-blue-50 text-blue-600 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition"

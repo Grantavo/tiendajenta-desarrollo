@@ -111,26 +111,78 @@ export default function AdminProducts() {
     fetchCategories();
   }, [fetchProducts, fetchCategories]);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleExportExcel = async () => {
+    if (filteredProducts.length === 0) {
+      toast.warning("No hay productos para exportar en la vista actual.");
+      return;
+    }
+
     try {
       const workbook = new ExcelJS.Workbook();
-      const arrayBuffer = await file.arrayBuffer();
-      await workbook.xlsx.load(arrayBuffer);
-      const worksheet = workbook.getWorksheet(1);
-      const rowsCount = worksheet ? worksheet.actualRowCount - 1 : 0;
+      const worksheet = workbook.addWorksheet("Inventario");
 
-      toast.info(`Excel leído: ${rowsCount} filas encontradas`, {
-        description: "La subida masiva se habilitará próximamente.",
+      // Definir columnas
+      worksheet.columns = [
+        { header: "ID Producto", key: "id", width: 25 },
+        { header: "Título", key: "title", width: 40 },
+        { header: "Ref / Marca", key: "ref", width: 20 },
+        { header: "Categoría", key: "category", width: 20 },
+        { header: "Stock", key: "stock", width: 10 },
+        { header: "Costo ($)", key: "cost", width: 15 },
+        { header: "Precio Venta ($)", key: "price", width: 15 },
+        { header: "Ganancia ($)", key: "profit", width: 15 },
+        { header: "Margen (%)", key: "margin", width: 12 },
+        { header: "Destacado", key: "bestSeller", width: 12 },
+      ];
+
+      // Dar estilo a la cabecera
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFE2EFDA" } // Verde claro
+      };
+
+      // Agregar filas
+      filteredProducts.forEach(product => {
+        const catName = categories.find(c => c.id == product.categoryId)?.name || "Sin Categoría";
+        const cost = Number(product.costPrice) || 0;
+        const price = Number(product.price) || 0;
+        const profit = price > 0 && cost > 0 ? price - cost : 0;
+        const margin = price > 0 && cost > 0 ? Math.round((profit / price) * 100) : 0;
+
+        worksheet.addRow({
+          id: product.id,
+          title: product.title,
+          ref: product.reference || product.brand || "-",
+          category: catName,
+          stock: product.stock,
+          cost: cost || "-",
+          price: price,
+          profit: profit || "-",
+          margin: margin ? `${margin}%` : "-",
+          bestSeller: product.bestSeller === "si" ? "Sí" : "No",
+        });
       });
+
+      // Generar archivo y descargar
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Inventario_Jenta_${new Date().toLocaleDateString('es-CO').replace(/\//g, '-')}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Inventario exportado a Excel correctamente 📊");
     } catch (error) {
       console.error(error);
-      toast.error("Error al leer el archivo Excel");
+      toast.error("Error al generar el archivo Excel");
     }
   };
-
-  const excelInputRef = useRef(null);
 
   const selectedCatObj = categories.find((c) => c.id == formData.categoryId);
   const availableSubcats = selectedCatObj ? selectedCatObj.subcategories : [];
@@ -380,18 +432,12 @@ export default function AdminProducts() {
           </button>
           <div className="relative flex-1 md:flex-none">
             <button
-              onClick={() => excelInputRef.current.click()}
+              onClick={handleExportExcel}
               className="w-full flex justify-center items-center gap-2 bg-green-600 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-bold hover:bg-green-700 transition shadow-md shadow-green-600/20"
+              title="Descargar inventario filtrado"
             >
               <FileSpreadsheet size={18} /> Excel
             </button>
-            <input
-              type="file"
-              ref={excelInputRef}
-              onChange={handleFileUpload}
-              accept=".xlsx, .xls"
-              className="hidden"
-            />
           </div>
           <button className="flex-1 md:flex-none flex justify-center items-center gap-2 bg-slate-700 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-bold hover:bg-slate-800 transition shadow-md shadow-slate-700/20">
             <FileText size={18} /> PDF

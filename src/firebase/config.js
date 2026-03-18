@@ -22,9 +22,13 @@ if (Object.values(firebaseConfig).some((value) => !value)) {
 // Singleton: Evita inicializar múltiples instancias de Firebase durante Hot Module Replacement (HMR)
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Instancias exportadas con tipado implícito para mejor DX (Developer Experience)
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+// Forzamos la sesión a que dure sólo lo que dura la ventana del navegador.
+import { setPersistence, browserSessionPersistence } from "firebase/auth";
+setPersistence(auth, browserSessionPersistence)
+  .catch((error) => console.error("Error al configurar persistencia de Firebase:", error));
 
 export default app;

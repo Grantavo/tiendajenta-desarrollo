@@ -326,9 +326,15 @@ export default function AdminProducts() {
   };
 
   const handleShareProduct = (product) => {
-    const shareText = `        \u{1F525} *¡Mira este producto!* \u{1F525}\n\n            *${product.title}*\n                \u{1F911} ${formatPrice(product.price)}\n\n      \u{1F440} ¡Consíguelo ya en nuestra tienda!\n            👉 https://jenta.online`;
+    const shareText = `        \u{1F525} *¡Mira este producto!* \u{1F525}\n\n            *${product.title}*\n                \u{1F911} $${product.price.toLocaleString()}\n\n      \u{1F440} ¡Consíguelo ya en nuestra tienda!\n            👉 https://jenta.online`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    
+    setWhatsappShareData({
+      title: product.title,
+      price: product.price,
+      image: product.images[0] || "",
+      shareUrl
+    });
   };
 
   const formatPrice = (price) => {

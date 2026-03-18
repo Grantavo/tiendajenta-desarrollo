@@ -493,11 +493,16 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-700">
+                        <span className="font-bold text-slate-700" title="Precio Venta">
                           {formatPrice(product.price)}
                         </span>
+                        {product.costPrice > 0 && (
+                          <span className="text-[10px] text-slate-400 font-medium" title="Precio de Compra (Costo)">
+                            Costo: {formatPrice(product.costPrice)}
+                          </span>
+                        )}
                         {product.oldPrice > product.price && (
-                          <span className="text-xs text-red-400 line-through">
+                          <span className="text-[10px] text-red-400 line-through mt-0.5" title="Precio Anterior">
                             {formatPrice(product.oldPrice)}
                           </span>
                         )}
@@ -616,13 +621,20 @@ export default function AdminProducts() {
                         {product.stock} un.
                       </span>
                     </div>
-                    <div className="flex items-end gap-2">
-                      <span className="font-black text-slate-800">
-                        {formatPrice(product.price)}
-                      </span>
-                      {product.oldPrice > product.price && (
-                        <span className="text-xs text-slate-400 line-through mb-0.5">
-                          {formatPrice(product.oldPrice)}
+                    <div className="flex flex-col">
+                      <div className="flex items-end gap-2">
+                        <span className="font-black text-slate-800">
+                          {formatPrice(product.price)}
+                        </span>
+                        {product.oldPrice > product.price && (
+                          <span className="text-xs text-slate-400 line-through mb-0.5">
+                            {formatPrice(product.oldPrice)}
+                          </span>
+                        )}
+                      </div>
+                      {product.costPrice > 0 && (
+                        <span className="text-[10px] text-slate-400 font-medium mt-0.5">
+                          Costo: {formatPrice(product.costPrice)}
                         </span>
                       )}
                     </div>

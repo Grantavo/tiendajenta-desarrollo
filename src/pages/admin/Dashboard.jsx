@@ -24,7 +24,17 @@ import {
 } from "lucide-react";
 
 import { db } from "../../firebase/config";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  getDoc,
+  getCountFromServer,
+  query,
+  where,
+  limit,
+  orderBy
+} from "firebase/firestore";
 import LoadingSpinner from "../../components/LoadingSpinner";
 
 const COLORS = ["#4285F4", "#DB4437", "#F4B400", "#0F9D58", "#8E24AA"];
@@ -60,39 +70,33 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const [
-          usersSnap,
-          productsSnap,
-          catsSnap,
-          ordersSnap,
-          couponsSnap,
+          usersCountSnap,
+          productsCountSnap,
+          catsCountSnap,
+          couponsCountSnap,
+          activeOrdersSnap, // Para contar sin traer
+          paidOrdersSnap,   // Graficas
+          recentUsersSnap,  // Tabla (solo últimos 15)
           rolesSnap,
           bannerDesignSnap,
         ] = await Promise.all([
-          getDocs(collection(db, "users")),
-          getDocs(collection(db, "products")),
-          getDocs(collection(db, "categories")),
-          getDocs(collection(db, "orders")),
-          getDocs(collection(db, "coupons")),
+          getCountFromServer(collection(db, "users")),
+          getCountFromServer(collection(db, "products")),
+          getCountFromServer(collection(db, "categories")),
+          getCountFromServer(collection(db, "coupons")),
+          // Contamos los pedidos que están en proceso (podemos usar getDocs solo en pendientes para ahorrar si no hay un query complejo de in (not in), pero aquí traeremos solo lo necesario o haremos query.)
+          getDocs(query(collection(db, "orders"), where("status", "in", ["Pendiente", "Preparación", "Pendiente Bold"]))),
+          getDocs(query(collection(db, "orders"), where("isPaid", "==", true))),
+          getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"), limit(15))),
           getDocs(collection(db, "roles")),
           getDoc(doc(db, "banners", "design")),
         ]);
 
-        const orders = ordersSnap.docs.map((doc) => ({
+        const validPaidOrders = paidOrdersSnap.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-        }));
+        })).filter(o => o.status !== "Anulado" && o.status !== "Eliminado"); // Filtro extra de seguridad local
 
-        const activeOrders = orders.filter((o) => {
-          const s = o.status;
-          return s !== "Entregado" && s !== "Anulado" && s !== "Eliminado";
-        }).length;
-
-        const validPaidOrders = orders.filter(
-          (o) =>
-            o.status !== "Anulado" &&
-            o.status !== "Eliminado" &&
-            o.isPaid === true
-        );
         setPaidOrders(validPaidOrders);
 
         const totalSalesCalc = validPaidOrders.reduce(
@@ -125,20 +129,20 @@ export default function Dashboard() {
         setTopProductsData(topProd);
 
         setCounts({
-          users: usersSnap.size,
-          products: productsSnap.size,
-          categories: catsSnap.size,
+          users: usersCountSnap.data().count,
+          products: productsCountSnap.data().count,
+          categories: catsCountSnap.data().count,
           banners: realBannersCount,
-          orders: activeOrders,
-          coupons: couponsSnap.size,
+          orders: activeOrdersSnap.size, // Size del query de pendientes
+          coupons: couponsCountSnap.data().count,
           totalSales: totalSalesCalc,
         });
 
-        const usersData = usersSnap.docs.map((doc) => ({
+        const usersData = recentUsersSnap.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setRealUsers(usersData.reverse());
+        setRealUsers(usersData);
 
         const rolesData = rolesSnap.docs.map((doc) => ({
           id: doc.id,

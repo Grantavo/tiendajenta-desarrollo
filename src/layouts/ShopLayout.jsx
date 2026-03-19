@@ -442,14 +442,21 @@ export default function ShopLayout() {
           return;
         }
 
-        // Calcular total con descuento
-        const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-        const shipping = JSON.parse(localStorage.getItem("shopShippingCost") || "0");
+        // Calcular total asegurando cast puro a Number para evitar bug de concatenación String (ej: 1000 + "200" = "1000200")
+        const subtotal = cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
+        
+        let shipping = 0;
+        try {
+          const rawShip = localStorage.getItem("shopShippingCost");
+          if (rawShip) shipping = Number(rawShip.replace(/[^0-9.-]+/g,"")) || 0;
+        } catch(e) {}
+
         const discount = appliedDiscount
           ? appliedDiscount.type === "percentage"
-            ? (subtotal * appliedDiscount.value) / 100
-            : appliedDiscount.value
+            ? (subtotal * (Number(appliedDiscount.value) || 0)) / 100
+            : (Number(appliedDiscount.value) || 0)
           : 0;
+
         const totalAmount = Math.round(subtotal + shipping - discount);
 
         // Crear orden y actualizar contador en UNA SOLA transacción atómica

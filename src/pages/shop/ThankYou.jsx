@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle, ShoppingBag, Home, Loader2, XCircle } from "lucide-react";
 import { db } from "../../firebase/config";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 
 export default function ThankYou() {
   const location = useLocation();
@@ -56,13 +56,39 @@ export default function ThankYou() {
     const handleBoldResult = async () => {
       try {
         const orderRef = doc(db, "orders", realOrderId);
+        const orderSnap = await getDoc(orderRef);
+        
+        if (!orderSnap.exists()) {
+          console.warn("Orden de Bold no encontrada en base de datos.");
+          setBoldProcessing(false);
+          return;
+        }
+        
+        const orderData = orderSnap.data();
+
         if (boldStatus === "approved") {
+          // Si el pedido no había descontado stock aún (vital para evitar doble descuento)
+          if (!orderData.stockDeducted) {
+            const items = orderData.items || [];
+            for (const item of items) {
+              const prodRef = doc(db, "products", item.id);
+              const prodSnap = await getDoc(prodRef);
+              if (prodSnap.exists()) {
+                const currentStock = prodSnap.data().stock || 0;
+                // Previene que quede en números negativos
+                const newStock = Math.max(0, currentStock - item.quantity);
+                await updateDoc(prodRef, { stock: newStock });
+              }
+            }
+          }
+
           // Pago aprobado: mover a "Pendiente" para que aparezca en el panel del admin
           await updateDoc(orderRef, {
             status: "Pendiente",
             isPaid: true,
             boldTxId: boldTxId || "",
             boldStatus: "approved",
+            stockDeducted: true, // Ponemos el candado
             paidAt: new Date(),
           });
           setBoldProcessing(false);

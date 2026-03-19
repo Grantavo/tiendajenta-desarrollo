@@ -432,7 +432,15 @@ export default function ShopLayout() {
           return;
         }
 
-        const boldConfig = boldConfigSnap.data();
+        const boldConfigData = boldConfigSnap.data();
+        const isSandbox = boldConfigData.mode === "sandbox";
+        const apiKey = isSandbox ? boldConfigData.sandboxApiKey : boldConfigData.productionApiKey;
+        const secretKey = isSandbox ? boldConfigData.sandboxSecretKey : boldConfigData.productionSecretKey;
+
+        if (!apiKey || !secretKey) {
+          toast.error("Faltan llaves de Bold para el modo actual. Contacta al administrador.");
+          return;
+        }
 
         // Calcular total con descuento
         const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -505,8 +513,8 @@ export default function ShopLayout() {
         setBoldPendingOrder({
           orderId: boldOrderId,
           amount: totalAmount,
-          apiKey: boldConfig.apiKey,
-          secretKey: boldConfig.secretKey,
+          apiKey: apiKey,
+          secretKey: secretKey,
           redirectUrl,
           orderFirestoreId: newOrderId,
           customerData: JSON.stringify(customerData),

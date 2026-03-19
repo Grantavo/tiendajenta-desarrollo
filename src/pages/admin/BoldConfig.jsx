@@ -11,8 +11,10 @@ export default function BoldConfig() {
   const [showSecretKey, setShowSecretKey] = useState(false);
   
   const [config, setConfig] = useState({
-    apiKey: "",
-    secretKey: "",
+    sandboxApiKey: "",
+    sandboxSecretKey: "",
+    productionApiKey: "",
+    productionSecretKey: "",
     mode: "sandbox",
     enabled: false
   });
@@ -25,7 +27,16 @@ export default function BoldConfig() {
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
-          setConfig(docSnap.data());
+          // Asegurar que existan todos los campos para evitar warnings de React
+          const data = docSnap.data();
+          setConfig({
+            sandboxApiKey: data.sandboxApiKey || "",
+            sandboxSecretKey: data.sandboxSecretKey || "",
+            productionApiKey: data.productionApiKey || "",
+            productionSecretKey: data.productionSecretKey || "",
+            mode: data.mode || "sandbox",
+            enabled: !!data.enabled
+          });
         }
       } catch (error) {
         console.error("Error cargando configuración:", error);
@@ -65,6 +76,8 @@ export default function BoldConfig() {
     );
   }
 
+  const isSandbox = config.mode === "sandbox";
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
@@ -91,12 +104,12 @@ export default function BoldConfig() {
           <p className={`font-bold text-sm ${
             config.enabled ? "text-green-800" : "text-yellow-800"
           }`}>
-            {config.enabled ? "Bold está activo" : "Bold está desactivado"}
+            {config.enabled ? "Bold está activo en la tienda" : "Bold está desactivado en la tienda"}
           </p>
           <p className="text-xs text-slate-600 mt-1">
             {config.enabled 
-              ? "Los clientes pueden pagar con tarjeta de crédito/débito y PSE." 
-              : "Activa Bold después de configurar tus llaves API."}
+              ? "Los clientes pueden pagar con tarjeta y PSE en el checkout." 
+              : "La opción de pagar con Bold estará oculta en el checkout hasta que lo actives."}
           </p>
         </div>
       </div>
@@ -109,43 +122,69 @@ export default function BoldConfig() {
               type="button"
               onClick={() => setConfig({ ...config, mode: "sandbox" })}
               className={`p-4 rounded-xl border-2 transition-all ${
-                config.mode === "sandbox"
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-slate-200 bg-white hover:border-slate-300"
+                isSandbox
+                  ? "border-orange-500 bg-orange-50 shadow-sm shadow-orange-500/20"
+                  : "border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/50"
               }`}
             >
-              <p className="font-bold text-slate-800">��� Sandbox (Pruebas)</p>
-              <p className="text-xs text-slate-500 mt-1">Para desarrollo y testing</p>
+              <p className={`font-bold ${isSandbox ? "text-orange-800" : "text-slate-700"}`}>
+                🧪 Sandbox (Pruebas)
+              </p>
+              <p className={`text-xs mt-1 ${isSandbox ? "text-orange-600" : "text-slate-500"}`}>
+                Simular pagos sin dinero real
+              </p>
             </button>
+
             <button
               type="button"
               onClick={() => setConfig({ ...config, mode: "production" })}
               className={`p-4 rounded-xl border-2 transition-all ${
-                config.mode === "production"
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-slate-200 bg-white hover:border-slate-300"
+                !isSandbox
+                  ? "border-blue-500 bg-blue-50 shadow-sm shadow-blue-500/20"
+                  : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50"
               }`}
             >
-              <p className="font-bold text-slate-800">��� Producción</p>
-              <p className="text-xs text-slate-500 mt-1">Para pagos reales</p>
+              <p className={`font-bold ${!isSandbox ? "text-blue-800" : "text-slate-700"}`}>
+                🚀 Producción
+              </p>
+              <p className={`text-xs mt-1 ${!isSandbox ? "text-blue-600" : "text-slate-500"}`}>
+                Recibir pagos y dinero real
+              </p>
             </button>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="font-bold text-slate-800 mb-4">Llaves API de Bold</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              Llaves API de Bold 
+              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                isSandbox 
+                  ? "bg-orange-100 text-orange-700" 
+                  : "bg-blue-100 text-blue-700"
+              }`}>
+                {isSandbox ? "ENTORNO PRUEBAS" : "ENTORNO PRODUCCIÓN"}
+              </span>
+            </h3>
+          </div>
           
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-              API Key (Público)
+              {isSandbox ? "API Key de Pruebas (Público)" : "API Key de Producción (Público)"}
             </label>
             <div className="relative">
               <input
                 type={showApiKey ? "text" : "password"}
-                value={config.apiKey}
-                onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-                placeholder="pk_live_xxxxxxxxxxxxxxxxxx"
-                className="w-full p-3 pr-12 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-mono text-sm"
+                // Vinculación dinámica: si es sandbox lee/escribe a sandboxApiKey, si no a productionApiKey
+                value={isSandbox ? config.sandboxApiKey : config.productionApiKey}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  [isSandbox ? "sandboxApiKey" : "productionApiKey"]: e.target.value 
+                })}
+                placeholder={isSandbox ? "pk_test_xxxxxxxxxxxxxxxxxx" : "pk_live_xxxxxxxxxxxxxxxxxx"}
+                className={`w-full p-3 pr-12 border border-slate-200 rounded-xl outline-none font-mono text-sm transition-colors ${
+                  isSandbox ? "focus:border-orange-500" : "focus:border-blue-500"
+                }`}
               />
               <button
                 type="button"
@@ -159,15 +198,21 @@ export default function BoldConfig() {
 
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-              Secret Key (Privado)
+              {isSandbox ? "Secret Key de Pruebas (Privado)" : "Secret Key de Producción (Privado)"}
             </label>
             <div className="relative">
               <input
                 type={showSecretKey ? "text" : "password"}
-                value={config.secretKey}
-                onChange={(e) => setConfig({ ...config, secretKey: e.target.value })}
-                placeholder="sk_live_xxxxxxxxxxxxxxxxxx"
-                className="w-full p-3 pr-12 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-mono text-sm"
+                // Vinculación dinámica
+                value={isSandbox ? config.sandboxSecretKey : config.productionSecretKey}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  [isSandbox ? "sandboxSecretKey" : "productionSecretKey"]: e.target.value 
+                })}
+                placeholder={isSandbox ? "sk_test_xxxxxxxxxxxxxxxxxx" : "sk_live_xxxxxxxxxxxxxxxxxx"}
+                className={`w-full p-3 pr-12 border border-slate-200 rounded-xl outline-none font-mono text-sm transition-colors ${
+                  isSandbox ? "focus:border-orange-500" : "focus:border-blue-500"
+                }`}
               />
               <button
                 type="button"
@@ -177,7 +222,7 @@ export default function BoldConfig() {
                 {showSecretKey ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="text-xs text-slate-400 mt-2 italic">
+            <p className="text-xs flex items-center gap-1 mt-2 italic text-red-500 font-medium">
               ⚠️ Nunca compartas tu Secret Key. Mantenla segura.
             </p>
           </div>
@@ -186,9 +231,9 @@ export default function BoldConfig() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-slate-800">Activar Bold</h3>
+              <h3 className="font-bold text-slate-800">Activar Bold para Clientes</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Permite a los clientes pagar con Bold en el carrito
+                Permite a los usuarios elegir Bold para pagar en la tienda.
               </p>
             </div>
             <button
@@ -208,28 +253,28 @@ export default function BoldConfig() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-slate-800 text-white font-bold py-4 rounded-xl hover:bg-slate-900 transition-all shadow-lg shadow-slate-800/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save size={20} />
           {saving ? "Guardando..." : "Guardar Configuración"}
         </button>
       </form>
 
-      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-        <p className="text-sm font-bold text-blue-800 mb-2">��� ¿Dónde encuentro mis llaves API?</p>
-        <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
-          <li>Inicia sesión en tu cuenta de Bold</li>
-          <li>Ve a Configuración → API Keys</li>
-          <li>Copia tu API Key y Secret Key</li>
-          <li>Pégalas aquí y guarda</li>
+      <div className="mt-8 p-6 bg-slate-50 border border-slate-200 rounded-2xl">
+        <p className="text-sm font-bold text-slate-800 mb-2">📌 ¿Dónde encuentro mis llaves API?</p>
+        <ol className="text-sm text-slate-600 space-y-2 ml-4 list-decimal mb-4">
+          <li>Inicia sesión en tu cuenta de <strong>Bold Biz</strong> u <strong>Olimpo</strong>.</li>
+          <li>Ve a <strong>Integraciones</strong> o <strong>Configuración API Variables</strong>.</li>
+          <li>Asegúrate de copiar las correctas para cada caso (Las de Prueba dicen <code className="bg-slate-200 px-1 rounded text-xs">test</code> y las reales dicen <code className="bg-slate-200 px-1 rounded text-xs">live</code>).</li>
+          <li>Pégalas en los cuadros de arriba y oprime Guardar.</li>
         </ol>
         <a 
           href="https://bold.co/developers" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-xs text-blue-600 hover:underline mt-2 inline-block font-bold"
+          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold"
         >
-          Ver documentación de Bold →
+          Ver documentación de Bold ↗
         </a>
       </div>
     </div>

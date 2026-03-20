@@ -586,9 +586,6 @@ export default function ShopLayout() {
       const counterRef = doc(db, "counters", "orders");
       let newOrderId = "";
 
-      console.log("🔵 [CHECKOUT WA] Iniciando transacción...");
-      console.log("🔵 [CHECKOUT WA] User (sessionStorage):", user?.id, user?.email);
-      console.log("🔵 [CHECKOUT WA] auth.currentUser:", auth.currentUser?.uid, auth.currentUser?.email);
 
       if (!auth.currentUser) {
         toast.error("Tu sesión expiró. Por favor inicia sesión de nuevo.");
@@ -598,18 +595,12 @@ export default function ShopLayout() {
 
       await runTransaction(db, async (transaction) => {
         // ===== FASE 1: TODAS LAS LECTURAS =====
-        console.log("🟡 [PASO 1] Leyendo contador...");
         const counterSnap = await transaction.get(counterRef);
-        console.log("✅ [PASO 1] Contador leído OK. Existe:", counterSnap.exists());
-
-        console.log("🟡 [PASO 2] Leyendo productos del carrito...");
         const validatedItems = [];
 
         for (const item of cart) {
           const productRef = doc(db, "products", item.id);
-          console.log("  🟡 Leyendo producto:", item.id, item.title);
           const productSnap = await transaction.get(productRef);
-          console.log("  ✅ Producto leído OK:", item.title);
 
           if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
 
@@ -632,20 +623,17 @@ export default function ShopLayout() {
           nextId = (counterSnap.data().seq || 1000) + 1;
         }
         newOrderId = `P${nextId}`;
-        console.log("✅ [PASO 2] Todos los productos validados. Nuevo ID:", newOrderId);
 
         // ===== FASE 2: TODAS LAS ESCRITURAS =====
-        console.log("🟡 [PASO 3] Escribiendo contador...");
         transaction.set(counterRef, { seq: nextId }, { merge: true });
 
-        console.log("🟡 [PASO 4] Actualizando stock de productos...");
         for (const item of validatedItems) {
           transaction.update(item.ref, {
             stock: increment(-item.qty)
           });
         }
 
-        console.log("🟡 [PASO 5] Creando orden:", newOrderId);
+
         const orderDocRef = doc(db, "orders", newOrderId);
         transaction.set(orderDocRef, {
           id: newOrderId,
@@ -667,10 +655,8 @@ export default function ShopLayout() {
             minute: "2-digit",
           }),
         });
-        console.log("✅ [PASO 5] Orden escrita (pendiente commit)");
       });
 
-      console.log("🟢 [CHECKOUT WA] ¡Transacción completada con éxito!");
 
       // 3. Abrir WhatsApp
       window.open(
@@ -685,9 +671,7 @@ export default function ShopLayout() {
       // PASAR ESTADO A THANK-YOU PARA EVITAR REDIRECCIÓN
       navigate("/thank-you", { state: { orderId: newOrderId, total, items: cart, paymentMethod: selectedPayment.type } });
     } catch (error) {
-      console.error("🔴 [CHECKOUT WA] ERROR:", error);
-      console.error("🔴 [CHECKOUT WA] Error code:", error?.code);
-      console.error("🔴 [CHECKOUT WA] Error message:", error?.message);
+      console.error("Error en checkout:", error?.code || error);
       const errMsg = error?.message || error?.code || (typeof error === "string" ? error : "Error desconocido");
       toast.error(`Error: ${errMsg}`);
     }

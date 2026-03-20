@@ -93,10 +93,10 @@ export function CartProvider({ children }) {
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
-          console.log("🟢 [REDIRECT] Sesión completada con Google:", result.user.email);
+          console.log("Sesión Google completada");
         }
       } catch (error) {
-        console.error("🔴 [REDIRECT] Error al procesar login de Google:", error);
+        console.error("Error al procesar login Google:", error);
         toast.error(`Error con Google: ${error.message}`);
       }
     };
@@ -111,7 +111,7 @@ export function CartProvider({ children }) {
       const currentSession = getUserFromStorage();
       if (currentSession?.email?.toLowerCase() === firebaseUser.email?.toLowerCase()) return;
 
-      console.log("🟢 [AUTH] Usuario detectado por Firebase:", firebaseUser.email);
+
 
       try {
         // Verificar si ya existe en users (admin) o clients
@@ -152,8 +152,9 @@ export function CartProvider({ children }) {
           };
         }
 
-        // Guardar sesión y actualizar estado
-        sessionStorage.setItem("shopUser", JSON.stringify(userData));
+        // Guardar sesión y actualizar estado (sin campos financieros)
+        const { balance, points, walletBalance, loyaltyPoints, investmentBalance, lastInvestmentUpdate, ...safeData } = userData;
+        sessionStorage.setItem("shopUser", JSON.stringify(safeData));
         setUser(userData);
         window.dispatchEvent(new Event("auth-change")); // Avisar a la Navbar y la app
 
@@ -163,7 +164,7 @@ export function CartProvider({ children }) {
         // if (isNew) window.location.href = "/perfil"; 
 
       } catch (error) {
-        console.error("🔴 [AUTH] Error procesando usuario Google:", error);
+        console.error("Error procesando usuario:", error);
       }
     });
 

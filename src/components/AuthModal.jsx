@@ -43,9 +43,18 @@ export default function AuthModal({ isOpen, onClose }) {
       return false;
     }
 
-    // Contraseña: Mínimo 6 caracteres
-    if (formData.password.trim().length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres.");
+    // Contraseña: Mínimo 8 caracteres, al menos 1 mayúscula y 1 número
+    const password = formData.password.trim();
+    if (password.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres.");
+      return false;
+    }
+    if (!/[A-Z]/.test(password)) {
+      toast.error("La contraseña debe incluir al menos una mayúscula.");
+      return false;
+    }
+    if (!/[0-9]/.test(password)) {
+      toast.error("La contraseña debe incluir al menos un número.");
       return false;
     }
 
@@ -151,8 +160,9 @@ export default function AuthModal({ isOpen, onClose }) {
         return;
       }
 
-      // 3. Guardar en SessionStorage por compatibilidad (TEMPORAL MIENTRAS SE MIGRA ADMIN)
-      sessionStorage.setItem("shopUser", JSON.stringify(userData));
+      // 3. Guardar en SessionStorage (SOLO datos básicos, sin campos financieros)
+      const { balance, points, walletBalance, loyaltyPoints, investmentBalance, lastInvestmentUpdate, ...safeData } = userData;
+      sessionStorage.setItem("shopUser", JSON.stringify(safeData));
 
       toast.success(`Bienvenido de nuevo, ${userData.name || user.displayName}`);
 
@@ -169,7 +179,7 @@ export default function AuthModal({ isOpen, onClose }) {
       }
 
     } catch (error) {
-      console.error("🔴 [LOGIN] Error:", error.code, error.message);
+      console.error("Error en login:", error.code);
       if (error.code === 'auth/invalid-credential') {
         toast.error("Correo o contraseña incorrectos.");
       } else if (error.code === 'auth/unauthorized-domain') {
@@ -227,10 +237,11 @@ export default function AuthModal({ isOpen, onClose }) {
 
       await setDoc(doc(db, "clients", user.uid), newClient);
 
-      // 4. Sesión (Compatibilidad)
+      // 4. Sesión (solo datos básicos, sin campos financieros)
+      const { balance: _b, points: _p, ...safeSession } = newClient;
       const sessionData = {
         id: user.uid,
-        ...newClient,
+        ...safeSession,
         collection: "clients",
         createdAt: new Date().toISOString(),
       };
@@ -246,7 +257,7 @@ export default function AuthModal({ isOpen, onClose }) {
       navigate("/perfil", { state: { openProfile: true, isNewUser: true } });
 
     } catch (error) {
-      console.error("🔴 [REGISTRO] Error:", error.code, error.message);
+      console.error("Error en registro:", error.code);
       if (error.code === 'auth/email-already-in-use') {
         toast.warning("El correo ya está registrado.");
       } else if (error.code === 'auth/unauthorized-domain') {
@@ -286,7 +297,7 @@ export default function AuthModal({ isOpen, onClose }) {
         toast.info("Ventana bloqueada, redirigiendo a Google...", { duration: 3000 });
         await signInWithRedirect(auth, provider);
       } else {
-        console.error("🔴 [GOOGLE] Error:", error.code, error.message);
+        console.error("Error Google Sign-In:", error.code);
         if (error.code === "auth/unauthorized-domain") {
           toast.error("Dominio no autorizado para Google Sign-In.", {
             description: "Asegúrate de haber agregado tu dominio en la Consola Firebase.",

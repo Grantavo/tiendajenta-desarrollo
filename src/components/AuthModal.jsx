@@ -43,19 +43,27 @@ export default function AuthModal({ isOpen, onClose }) {
       return false;
     }
 
-    // Contraseña: Mínimo 8 caracteres, al menos 1 mayúscula y 1 número
+    // Contraseña: validación básica para login, fuerte para registro
     const password = formData.password.trim();
-    if (password.length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres.");
+    if (password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres.");
       return false;
     }
-    if (!/[A-Z]/.test(password)) {
-      toast.error("La contraseña debe incluir al menos una mayúscula.");
-      return false;
-    }
-    if (!/[0-9]/.test(password)) {
-      toast.error("La contraseña debe incluir al menos un número.");
-      return false;
+
+    // Reglas fuertes SOLO para registro de cuentas nuevas
+    if (view === "register") {
+      if (password.length < 8) {
+        toast.error("La contraseña debe tener al menos 8 caracteres.");
+        return false;
+      }
+      if (!/[A-Z]/.test(password)) {
+        toast.error("La contraseña debe incluir al menos una mayúscula.");
+        return false;
+      }
+      if (!/[0-9]/.test(password)) {
+        toast.error("La contraseña debe incluir al menos un número.");
+        return false;
+      }
     }
 
     // Validaciones exclusivas de Registro

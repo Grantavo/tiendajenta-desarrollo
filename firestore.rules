@@ -54,8 +54,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    // SEGURIDAD: Cupones solo legibles por usuarios autenticados
+    // (evita que cualquiera liste todos los códigos de descuento)
     match /coupons/{couponId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
@@ -101,10 +103,13 @@ service cloud.firestore {
     }
 
     // 7. CONTADORES (IDs secuenciales de pedidos)
-    // Necesitan write de usuarios autenticados para el checkout
+    // SEGURIDAD: Solo permitir incrementar seq en +1 (evita manipulación arbitraria)
     match /counters/{counterId} {
-      allow read: if true;
-      allow create, update: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seq']) &&
+        request.resource.data.seq == resource.data.seq + 1;
     }
 
     // 8. RESEÑAS

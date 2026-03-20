@@ -1,7 +1,7 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Banners: solo usuarios autenticados pueden escribir, todos pueden leer
+    // Banners: solo usuarios autenticados pueden subir imágenes, todos pueden leer
     match /banners/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null
@@ -9,7 +9,7 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
-    // Logo de la tienda: solo usuarios autenticados pueden escribir, todos pueden leer
+    // Logo de la tienda: solo usuarios autenticados pueden subir, todos pueden leer
     match /logos/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null
@@ -17,9 +17,19 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
-    // Demás archivos: solo autenticados pueden leer/escribir
+    // Productos: imágenes de productos, solo autenticados pueden subir
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // SEGURIDAD: Bloquear todo lo demás — no permitir subir archivos a rutas arbitrarias
+    // Lectura pública para que las imágenes ya subidas sigan funcionando
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      allow write: if false;
     }
   }
 }

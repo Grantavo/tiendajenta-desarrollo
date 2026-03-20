@@ -24,43 +24,17 @@ export default function MyOrdersModal({ isOpen, onClose, user }) {
 
   // Cargar Pedidos al abrir el modal
   useEffect(() => {
-    if (isOpen && (user?.id || user?.email || user?.phone)) {
+    if (isOpen && user?.id) {
       const fetchOrders = async () => {
         setLoading(true);
         try {
           const ordersRef = collection(db, "orders");
           
-          // Ejecutar múltiples queries en paralelo para cubrir todos los métodos de pago:
-          // - WhatsApp usa "phone"
-          // - Billetera usa "clientId" (id del doc de clients)
-          // - Bold usa "clientId" y "clientEmail"
-          const queries = [];
+          // SEGURIDAD: Buscar solo por clientId (UID de Firebase Auth)
+          // Las reglas de Firestore solo permiten leer órdenes del propio usuario
+          const snap = await getDocs(query(ordersRef, where("clientId", "==", user.id)));
           
-          if (user.phone) {
-            queries.push(getDocs(query(ordersRef, where("phone", "==", user.phone))));
-          }
-          if (user.email) {
-            // clientEmail = pedidos Bold / customerEmail = pedidos Billetera
-            queries.push(getDocs(query(ordersRef, where("clientEmail", "==", user.email))));
-            queries.push(getDocs(query(ordersRef, where("customerEmail", "==", user.email))));
-          }
-          if (user.id) {
-            queries.push(getDocs(query(ordersRef, where("clientId", "==", user.id))));
-          }
-
-          const snapshots = await Promise.all(queries);
-          
-          // Combinar todos los resultados sin duplicados (usando el ID del doc como clave)
-          const seen = new Set();
-          const allOrders = [];
-          for (const snap of snapshots) {
-            for (const doc of snap.docs) {
-              if (!seen.has(doc.id)) {
-                seen.add(doc.id);
-                allOrders.push({ id: doc.id, ...doc.data() });
-              }
-            }
-          }
+          const allOrders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
           // Ordenar del más reciente al más antiguo
           allOrders.sort((a, b) => {

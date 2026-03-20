@@ -442,28 +442,49 @@ export default function ShopLayout() {
           return;
         }
 
-        // Calcular total asegurando cast puro a Number para evitar bug de concatenación String (ej: 1000 + "200" = "1000200")
-        const subtotal = cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
-        
         // IMPORTANTE: Usar shippingCost del estado que ya incluye la lógica de ciudad (ej: Pasto = $0)
-        // NO leer de localStorage directamente porque ignora la lógica de envío gratis
         const shipping = shippingCost;
 
-        // Usar las propiedades correctas del descuento: appliedDiscount = { code, percent }
-        const discount = appliedDiscount
-          ? (subtotal * (Number(appliedDiscount.percent) || 0)) / 100
-          : 0;
-
-        const totalAmount = Math.round(subtotal + shipping - discount);
-
-        // Crear orden y actualizar contador en UNA SOLA transacción atómica
-        const { newOrderId, boldOrderId } = await runTransaction(db, async (tx) => {
+        // Crear orden con VALIDACIÓN DE PRECIOS REALES en transacción atómica
+        const { newOrderId, boldOrderId, totalAmount } = await runTransaction(db, async (tx) => {
+          // ===== FASE 1: TODAS LAS LECTURAS =====
           const counterRef = doc(db, "counters", "orders");
           const counterSnap = await tx.get(counterRef);
-          
+
+          // SEGURIDAD: Leer precios y stock REALES desde Firestore (igual que Billetera)
+          let serverSubtotal = 0;
+          const validatedItems = [];
+
+          for (const item of cart) {
+            const productRef = doc(db, "products", item.id);
+            const productSnap = await tx.get(productRef);
+
+            if (!productSnap.exists()) throw `El producto "${item.title}" ya no existe.`;
+
+            const pData = productSnap.data();
+            const realPrice = Number(pData.price);
+            const currentStock = Number(pData.stock);
+            const qty = Number(item.quantity || 1);
+
+            if (currentStock < qty) throw `Stock insuficiente para "${pData.title}" (Quedan: ${currentStock}).`;
+
+            serverSubtotal += realPrice * qty;
+            validatedItems.push({
+              ...item,
+              price: realPrice,
+              qty: qty,
+            });
+          }
+
+          // Recalcular total con precios REALES del servidor
+          const serverDiscount = appliedDiscount
+            ? (serverSubtotal * (Number(appliedDiscount.percent) || 0)) / 100
+            : 0;
+          const serverTotal = Math.round(serverSubtotal + shipping - serverDiscount);
+
+          // ===== FASE 2: TODAS LAS ESCRITURAS =====
           let nextId = 1001;
           if (counterSnap.exists()) {
-            // Usar 'seq' para ser consistente con el flujo de WhatsApp
             nextId = (counterSnap.data().seq || 1000) + 1;
           }
           
@@ -481,24 +502,24 @@ export default function ShopLayout() {
             phone: session.phone || "",
             address: session.address || "",
             city: session.city || "",
-            items: cart,
-            subtotal,
+            items: validatedItems,
+            subtotal: serverSubtotal,
             shipping,
-            discount,
-            total: totalAmount,
+            discount: serverDiscount,
+            total: serverTotal,
             status: "Pendiente Bold",
             paymentMethod: "Bold",
-            stockDeducted: false, // Bold no descuenta stock en el checkout
+            stockDeducted: false,
             createdAt: serverTimestamp(),
           };
 
           // Actualizar contador
           tx.set(counterRef, { seq: nextId }, { merge: true });
           
-          // Crear la orden
+          // Crear la orden con precios validados
           tx.set(doc(db, "orders", generatedId), orderData);
 
-          return { newOrderId: generatedId, boldOrderId: boldId };
+          return { newOrderId: generatedId, boldOrderId: boldId, totalAmount: serverTotal };
         });
 
         const session = JSON.parse(sessionStorage.getItem("shopUser") || "{}");

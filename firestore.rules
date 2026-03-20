@@ -44,8 +44,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    // Settings generales (shop, loyalty, etc.) — lectura pública
     match /settings/{settingId} {
-      allow read: if true;
+      // SEGURIDAD: settings/bold contiene Secret Keys → solo usuarios autenticados
+      allow read: if settingId == 'bold' ? isAuthenticated() : true;
       allow write: if isAdmin();
     }
     match /shipping_config/{configId} {
@@ -84,11 +86,12 @@ service cloud.firestore {
 
     // 5. PEDIDOS
     // - Crear: cualquier usuario autenticado
-    // - Leer: cualquier usuario autenticado (las queries SDK ya filtran por email/clientId)
+    // - Leer: admin puede leer todo | cliente solo sus propias órdenes (por clientId)
     // - Actualizar/eliminar: solo admin
     match /orders/{orderId} {
       allow create: if isAuthenticated();
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.clientId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 

@@ -196,10 +196,11 @@ export function CartProvider({ children }) {
   }, [user?.email]);
 
   // 4. SINCRONIZACIÓN CARRITO (Nube <-> Local)
+  // SEGURIDAD: Usar user.id (UID) como ID del carrito para que coincida con las reglas de Firestore
   useEffect(() => {
-    if (!user?.email) return;
+    if (!user?.id) return;
 
-    const unsubCart = onSnapshot(doc(db, "carts", user.email), (docSnap) => {
+    const unsubCart = onSnapshot(doc(db, "carts", user.id), (docSnap) => {
       if (docSnap.exists()) {
         const cloudItems = docSnap.data().items || [];
         setCart((prev) => {
@@ -208,11 +209,11 @@ export function CartProvider({ children }) {
         });
       } else {
         // Crear carrito vacío en nube si es usuario nuevo
-        setDoc(doc(db, "carts", user.email), { items: [] }, { merge: true });
+        setDoc(doc(db, "carts", user.id), { items: [] }, { merge: true });
       }
     });
     return () => unsubCart();
-  }, [user?.email]);
+  }, [user?.id]);
 
   // 5. BACKUP LOCAL
   useEffect(() => {
@@ -224,7 +225,7 @@ export function CartProvider({ children }) {
     async (product, quantityToAdd, variant = null) => {
       const amount = Math.max(1, Number(quantityToAdd) || 1);
       const stockLimit = Number(product.stock) || 0;
-      const email = user?.email;
+      const uid = user?.id;
       // Si hay variante, usamos una clave compuesta para diferenciar el mismo producto en distintas variantes
       const cartKey = variant ? `${product.id}_${variant}` : product.id;
 
@@ -258,9 +259,9 @@ export function CartProvider({ children }) {
           });
         }
 
-        if (email) {
+        if (uid) {
           setDoc(
-            doc(db, "carts", email),
+            doc(db, "carts", uid),
             { items: newCart },
             { merge: true },
           ).catch((e) => console.error("Error sync cart:", e));
@@ -269,31 +270,31 @@ export function CartProvider({ children }) {
         return newCart;
       });
     },
-    [user?.email],
+    [user?.id],
   );
 
   const removeFromCart = useCallback(
     async (key) => {
-      const email = user?.email;
+      const uid = user?.id;
       setCart((prev) => {
         // Busca por cartKey primero (nuevo), luego por id (retrocompatibilidad)
         const newCart = prev.filter((i) => (i.cartKey || i.id) !== key);
-        if (email)
-          setDoc(doc(db, "carts", email), { items: newCart }, { merge: true });
+        if (uid)
+          setDoc(doc(db, "carts", uid), { items: newCart }, { merge: true });
         return newCart;
       });
       toast.success("Eliminado");
     },
-    [user?.email],
+    [user?.id],
   );
 
   const clearCart = useCallback(async () => {
-    const email = user?.email;
+    const uid = user?.id;
     setCart([]);
     localStorage.removeItem("jenta_cart");
-    if (email)
-      await setDoc(doc(db, "carts", email), { items: [] }, { merge: true });
-  }, [user?.email]);
+    if (uid)
+      await setDoc(doc(db, "carts", uid), { items: [] }, { merge: true });
+  }, [user?.id]);
 
   const logout = useCallback(async () => {
     sessionStorage.removeItem("shopUser");

@@ -445,16 +445,13 @@ export default function ShopLayout() {
         // Calcular total asegurando cast puro a Number para evitar bug de concatenación String (ej: 1000 + "200" = "1000200")
         const subtotal = cart.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
         
-        let shipping = 0;
-        try {
-          const rawShip = localStorage.getItem("shopShippingCost");
-          if (rawShip) shipping = Number(rawShip.replace(/[^0-9.-]+/g,"")) || 0;
-        } catch(e) {}
+        // IMPORTANTE: Usar shippingCost del estado que ya incluye la lógica de ciudad (ej: Pasto = $0)
+        // NO leer de localStorage directamente porque ignora la lógica de envío gratis
+        const shipping = shippingCost;
 
+        // Usar las propiedades correctas del descuento: appliedDiscount = { code, percent }
         const discount = appliedDiscount
-          ? appliedDiscount.type === "percentage"
-            ? (subtotal * (Number(appliedDiscount.value) || 0)) / 100
-            : (Number(appliedDiscount.value) || 0)
+          ? (subtotal * (Number(appliedDiscount.percent) || 0)) / 100
           : 0;
 
         const totalAmount = Math.round(subtotal + shipping - discount);
